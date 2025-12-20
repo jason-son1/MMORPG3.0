@@ -171,7 +171,7 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
     /**
      * 재귀적으로 맵/리스트를 순회하며 Double로 변환된 정수형 데이터를 Long/Integer로 복구합니다.
      */
-    @SuppressWarnings("unchecked")
+
     private static Map<String, Object> fixNumberTypes(Map<String, Object> input) {
         Map<String, Object> output = new ConcurrentHashMap<>();
         for (Map.Entry<String, Object> entry : input.entrySet()) {

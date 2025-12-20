@@ -1,0 +1,11 @@
+fireball:
+  displayName: "Fireball"
+  type: "CAST"
+  cooldown: 5
+  cost:
+    MANA: 20
+  effects:
+    - type: "DAMAGE"
+      value: 50
+    - type: "BURN"
+      duration: 3

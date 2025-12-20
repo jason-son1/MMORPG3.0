@@ -1,0 +1,10 @@
+heavy_strike:
+  displayName: "Heavy Strike"
+  type: "MELEE"
+  cooldown: 3
+  cost:
+    STAMINA: 15
+  effects:
+    - type: "DAMAGE"
+      value: 30
+      multiplier: 1.5

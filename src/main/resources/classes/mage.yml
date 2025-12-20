@@ -1,0 +1,12 @@
+mage:
+  displayName: "Mage"
+  base_stats:
+    INTELLIGENCE: 15
+    WISDOM: 10
+    MAX_MANA: 100
+  scale_stats:
+    INTELLIGENCE: 2
+    WISDOM: 1
+  skills:
+    - "fireball"
+    - "ice_bolt"

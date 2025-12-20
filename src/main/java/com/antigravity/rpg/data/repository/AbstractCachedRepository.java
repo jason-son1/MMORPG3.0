@@ -8,9 +8,11 @@ import java.util.concurrent.Executor;
 
 public abstract class AbstractCachedRepository<K, V> implements Repository<K, V> {
 
+    private final Executor executor;
     private final AsyncLoadingCache<K, V> cache;
 
     protected AbstractCachedRepository(Executor executor) {
+        this.executor = executor;
         this.cache = Caffeine.newBuilder()
                 .maximumSize(1000)
                 .expireAfterAccess(30, TimeUnit.MINUTES)
@@ -38,7 +40,7 @@ public abstract class AbstractCachedRepository<K, V> implements Repository<K, V>
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        });
+        }, executor);
     }
 
     @Override
@@ -50,6 +52,6 @@ public abstract class AbstractCachedRepository<K, V> implements Repository<K, V>
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        });
+        }, executor);
     }
 }

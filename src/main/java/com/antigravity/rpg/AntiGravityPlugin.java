@@ -64,12 +64,14 @@ public class AntiGravityPlugin extends JavaPlugin {
             // 스킬 시전 서비스
             serviceManager.startService(injector.getInstance(com.antigravity.rpg.feature.skill.SkillCastService.class));
 
-            // 데이터 Import/Export 서비스 (매니저 등록 불필요, 커맨드 핸들링용)
-            com.antigravity.rpg.data.service.DataImportExportService dataImportExportService = injector
-                    .getInstance(com.antigravity.rpg.data.service.DataImportExportService.class);
+            // 데이터 Import/Export 서비스 및 관리자 명령어
             if (getCommand("rpgadmin") != null) {
-                getCommand("rpgadmin")
-                        .setExecutor(new com.antigravity.rpg.command.admin.DataSyncCommand(dataImportExportService));
+                getCommand("rpgadmin").setExecutor(new com.antigravity.rpg.command.admin.DataSyncCommand(
+                        injector.getInstance(com.antigravity.rpg.data.service.DataImportExportService.class),
+                        injector.getInstance(com.antigravity.rpg.core.script.LuaScriptService.class),
+                        injector.getInstance(com.antigravity.rpg.feature.skill.SkillManager.class),
+                        injector.getInstance(com.antigravity.rpg.feature.classes.ClassRegistry.class),
+                        injector.getInstance(com.antigravity.rpg.core.engine.StatRegistry.class)));
             }
 
         } catch (Exception e) {
