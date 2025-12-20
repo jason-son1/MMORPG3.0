@@ -19,7 +19,6 @@ public class AntiGravityPlugin extends JavaPlugin {
 
         // 1. 의존성 주입 초기화 (Initialize Dependency Injection)
         // [중요] config.yml이 없으면 기본 파일을 복사하여 저장합니다.
-        // 이 코드가 있어야 resources 폴더의 config.yml이 서버 폴더로 복사됩니다.
         saveDefaultConfig();
 
         try {
@@ -43,6 +42,8 @@ public class AntiGravityPlugin extends JavaPlugin {
 
             // 기능별 서비스 (Features)
             serviceManager.startService(injector.getInstance(com.antigravity.rpg.core.script.LuaScriptService.class));
+            serviceManager
+                    .startService(injector.getInstance(com.antigravity.rpg.core.engine.trigger.TriggerService.class)); // NEW
 
             // 플레이어 프로필 관리 서비스
             serviceManager

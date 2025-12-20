@@ -11,7 +11,7 @@ public class DamageContext {
     private final LivingEntity victim;
     private final EntityStatData attackerStats;
     private final EntityStatData victimStats;
-    private final Set<DamageTag> tags = new HashSet<>();
+    private final Set<String> tags = new HashSet<>();
 
     // Mutable Calculation Variables
     private double baseDamage;
@@ -27,11 +27,19 @@ public class DamageContext {
         this.baseDamage = baseDamage;
     }
 
-    public void addTag(DamageTag tag) {
+    public void addTag(String tag) {
         tags.add(tag);
     }
 
-    public boolean hasTag(DamageTag tag) {
+    public void addTag(Enum<?> tag) {
+        tags.add(tag.name());
+    }
+
+    public boolean hasTag(String tag) {
         return tags.contains(tag);
+    }
+
+    public boolean hasTag(Enum<?> tag) {
+        return tags.contains(tag.name());
     }
 }

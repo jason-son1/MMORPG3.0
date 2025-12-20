@@ -1,6 +1,12 @@
 package com.antigravity.rpg.core.engine;
 
+import com.antigravity.rpg.AntiGravityPlugin;
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
+
+import java.io.File;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,8 +14,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Singleton
 public class StatRegistry {
     private final Map<String, StatDefinition> stats = new ConcurrentHashMap<>();
+    private final AntiGravityPlugin plugin;
 
-    // Standard Stats
+    // Standard Stats (Kept for code compatibility, but defined in config)
     public static final String MAX_HEALTH = "MAX_HEALTH";
     public static final String MAX_MANA = "MAX_MANA";
     public static final String HEALTH_REGEN = "HEALTH_REGEN";
@@ -21,24 +28,45 @@ public class StatRegistry {
     public static final String CRITICAL_DAMAGE = "CRITICAL_DAMAGE";
     public static final String MOVEMENT_SPEED = "MOVEMENT_SPEED";
 
-    public StatRegistry() {
-        registerDefaults();
+    @Inject
+    public StatRegistry(AntiGravityPlugin plugin) {
+        this.plugin = plugin;
+        loadStats();
     }
 
-    private void registerDefaults() {
-        register(new StatDefinition(MAX_HEALTH, "Max Health", StatType.ATTRIBUTE, 1, 1000000, 20));
-        register(new StatDefinition(MAX_MANA, "Max Mana", StatType.ATTRIBUTE, 0, 1000000, 100));
-        register(new StatDefinition(HEALTH_REGEN, "Health Regen", StatType.ATTRIBUTE, 0, 10000, 1));
-        register(new StatDefinition(MANA_REGEN, "Mana Regen", StatType.ATTRIBUTE, 0, 10000, 5));
+    public void reload() {
+        stats.clear();
+        loadStats();
+    }
 
-        register(new StatDefinition(PHYSICAL_DAMAGE, "Physical Damage", StatType.ATTRIBUTE, 0, 1000000, 5));
-        register(new StatDefinition(MAGICAL_DAMAGE, "Magical Damage", StatType.ATTRIBUTE, 0, 1000000, 0));
-        register(new StatDefinition(DEFENSE, "Defense", StatType.ATTRIBUTE, 0, 1000000, 0));
+    private void loadStats() {
+        File file = new File(plugin.getDataFolder(), "stats.yml");
+        if (!file.exists()) {
+            plugin.saveResource("stats.yml", false);
+        }
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
 
-        register(new StatDefinition(CRITICAL_CHANCE, "Crit Chance", StatType.CHANCE, 0, 100, 5));
-        register(new StatDefinition(CRITICAL_DAMAGE, "Crit Damage", StatType.MULTIPLIER, 100, 500, 150));
+        ConfigurationSection section = config.getConfigurationSection("stats");
+        if (section == null)
+            return;
 
-        register(new StatDefinition(MOVEMENT_SPEED, "Speed", StatType.ATTRIBUTE, 0, 0.5, 0.2)); // Clamped 0.5
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection s = section.getConfigurationSection(key);
+            if (s == null)
+                continue;
+
+            String name = s.getString("name", key);
+            String typeStr = s.getString("type", "ATTRIBUTE");
+            StatType type = StatType.valueOf(typeStr);
+            double min = s.getDouble("min", 0);
+            double max = s.getDouble("max", 1000000); // large default
+            double def = s.getDouble("default", 0);
+
+            StatDefinition defObj = new StatDefinition(key, name, type, min, max, def);
+            register(defObj);
+
+            plugin.getLogger().info("Loaded stat: " + key + " (" + name + ")");
+        }
     }
 
     public void register(StatDefinition stat) {

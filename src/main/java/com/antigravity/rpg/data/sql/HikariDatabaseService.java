@@ -51,7 +51,14 @@ public class HikariDatabaseService implements DatabaseService {
         try (Connection conn = dataSource.getConnection();
                 java.sql.Statement stmt = conn.createStatement()) {
 
-            // Player Data
+            // New JSON-based Player Data Table
+            stmt.execute("CREATE TABLE IF NOT EXISTS player_data_v2 (" +
+                    "uuid VARCHAR(36) PRIMARY KEY, " +
+                    "json_data LONGTEXT, " +
+                    "last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" +
+                    ");");
+
+            // Previous tables kept for reference or migration
             stmt.execute("CREATE TABLE IF NOT EXISTS player_data (" +
                     "uuid VARCHAR(36) PRIMARY KEY, " +
                     "class_id VARCHAR(32), " +
@@ -60,26 +67,6 @@ public class HikariDatabaseService implements DatabaseService {
                     "current_mana DOUBLE, " +
                     "current_stamina DOUBLE, " +
                     "last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
-                    ");");
-
-            // Player Skills
-            stmt.execute("CREATE TABLE IF NOT EXISTS player_skills (" +
-                    "uuid VARCHAR(36), " +
-                    "skill_id VARCHAR(64), " +
-                    "level INT DEFAULT 0, " +
-                    "cooldown_end BIGINT, " +
-                    "PRIMARY KEY (uuid, skill_id), " +
-                    "FOREIGN KEY (uuid) REFERENCES player_data(uuid) ON DELETE CASCADE" +
-                    ");");
-
-            // Player Professions
-            stmt.execute("CREATE TABLE IF NOT EXISTS player_professions (" +
-                    "uuid VARCHAR(36), " +
-                    "profession_id VARCHAR(32), " +
-                    "level INT DEFAULT 1, " +
-                    "experience DOUBLE DEFAULT 0, " +
-                    "PRIMARY KEY (uuid, profession_id), " +
-                    "FOREIGN KEY (uuid) REFERENCES player_data(uuid) ON DELETE CASCADE" +
                     ");");
 
             plugin.getLogger().info("Database schema initialized.");

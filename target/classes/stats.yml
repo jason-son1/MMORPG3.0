@@ -1,0 +1,61 @@
+stats:
+  MAX_HEALTH:
+    name: "Max Health"
+    type: "ATTRIBUTE"
+    min: 1
+    max: 1000000
+    default: 20
+  MAX_MANA:
+    name: "Max Mana"
+    type: "ATTRIBUTE"
+    min: 0
+    max: 1000000
+    default: 100
+  HEALTH_REGEN:
+    name: "Health Regen"
+    type: "ATTRIBUTE"
+    min: 0
+    max: 10000
+    default: 1
+  MANA_REGEN:
+    name: "Mana Regen"
+    type: "ATTRIBUTE"
+    min: 0
+    max: 10000
+    default: 5
+  PHYSICAL_DAMAGE:
+    name: "Physical Damage"
+    type: "ATTRIBUTE"
+    min: 0
+    max: 1000000
+    default: 5
+  MAGICAL_DAMAGE:
+    name: "Magical Damage"
+    type: "ATTRIBUTE"
+    min: 0
+    max: 1000000
+    default: 0
+  DEFENSE:
+    name: "Defense"
+    type: "ATTRIBUTE"
+    min: 0
+    max: 1000000
+    default: 0
+  CRITICAL_CHANCE:
+    name: "Crit Chance"
+    type: "CHANCE"
+    min: 0
+    max: 100
+    default: 5
+  CRITICAL_DAMAGE:
+    name: "Crit Damage"
+    type: "MULTIPLIER"
+    min: 100
+    max: 500
+    default: 150
+  MOVEMENT_SPEED:
+    name: "Speed"
+    type: "ATTRIBUTE"
+    min: 0
+    max: 0.5
+    default: 0.2

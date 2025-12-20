@@ -1,136 +1,199 @@
 package com.antigravity.rpg.feature.player;
 
-import lombok.Data;
+import lombok.Getter;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
-@Data
 public class PlayerData {
+    @Getter
     private final UUID uuid;
-    private final ResourcePool resources = new ResourcePool();
-    private final Map<String, Integer> skillLevels = new ConcurrentHashMap<>();
-    private final Map<String, Integer> professions = new ConcurrentHashMap<>(); // Profession Levels
-    private final Map<String, Double> savedStats = new ConcurrentHashMap<>();
 
-    // Metadata / Temp Flags
-    private transient boolean isLoaded = false;
+    // Core data storage
+    private final Map<String, Object> data = new ConcurrentHashMap<>();
 
-    private String classId;
-    private int level = 1;
-    private double experience;
-
-    private final Map<String, Long> skillCooldowns = new ConcurrentHashMap<>();
-
-    public Map<String, Integer> getProfessions() {
-        return professions;
-    }
+    // Helper objects (wrappers around the data map or transient)
+    private final ResourcePool resources;
 
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
+        // Initialize default values
+        this.data.put("level", 1);
+        this.data.put("experience", 0.0);
+        this.data.put("skillLevels", new ConcurrentHashMap<String, Integer>());
+        this.data.put("professions", new ConcurrentHashMap<String, Integer>());
+        this.data.put("skillCooldowns", new ConcurrentHashMap<String, Number>()); // changed to Number to handle
+                                                                                  // Long/Integer issues
+
+        this.data.put("savedStats", new ConcurrentHashMap<String, Double>());
+
+        this.resources = new ResourcePool();
+    }
+
+    // Generic Accessors
+    public void set(String key, Object value) {
+        data.put(key, value);
+    }
+
+    public <T> T get(String key, Class<T> type) {
+        Object val = data.get(key);
+        if (val != null && type.isAssignableFrom(val.getClass())) {
+            return type.cast(val);
+        }
+        return null; // Or Optional
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T get(String key, T defaultValue) {
+        Object val = data.get(key);
+        if (val == null)
+            return defaultValue;
+        try {
+            return (T) val;
+        } catch (ClassCastException e) {
+            return defaultValue;
+        }
+    }
+
+    // Type-Safe Wrappers (Backward Compatibility)
+    public String getClassId() {
+        return (String) data.get("classId");
+    }
+
+    public void setClassId(String classId) {
+        data.put("classId", classId != null ? classId : "");
+    }
+
+    public int getLevel() {
+        Number n = (Number) data.getOrDefault("level", 1);
+        return n.intValue();
+    }
+
+    public void setLevel(int level) {
+        data.put("level", level);
+    }
+
+    public double getExperience() {
+        Number n = (Number) data.getOrDefault("experience", 0.0);
+        return n.doubleValue();
+    }
+
+    public void setExperience(double experience) {
+        data.put("experience", experience);
+    }
+
+    public ResourcePool getResources() {
+        return resources;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Integer> getSkillLevels() {
+        return (Map<String, Integer>) data.get("skillLevels");
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Integer> getProfessions() {
+        return (Map<String, Integer>) data.get("professions");
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Long> getSkillCooldowns() {
+        // This is a bit tricky because JSON might deserialize as Double or Integer
+        // We really should return a view or ensure types on load.
+        // For now, let's trust the load process or cast safely.
+        Object obj = data.get("skillCooldowns");
+        if (obj instanceof Map) {
+            return (Map<String, Long>) obj;
+        }
+        return new ConcurrentHashMap<>();
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Double> getSavedStats() {
+        Object obj = data.get("savedStats");
+        if (obj instanceof Map) {
+            return (Map<String, Double>) obj;
+        }
+        return new ConcurrentHashMap<>();
+    }
+
+    public boolean isLoaded() {
+        return (boolean) data.getOrDefault("isLoaded", false);
+    }
+
+    public void setLoaded(boolean loaded) {
+        data.put("isLoaded", loaded);
     }
 
     /**
-     * PlayerData를 YAML 저장을 위한 Map으로 변환합니다.
-     * 
-     * @return 데이터가 담긴 Map
+     * Get the raw map for serialization.
+     * Ensure we sync separate objects like Resources back to the map before saving.
      */
     public Map<String, Object> toMap() {
-        Map<String, Object> map = new ConcurrentHashMap<>();
-        map.put("classId", classId != null ? classId : "");
-        map.put("level", level);
-        map.put("experience", experience);
+        // Sync Resources
+        data.put("currentMana", resources.getCurrentMana());
+        data.put("currentStamina", resources.getCurrentStamina());
 
-        // 리소스 (ResourcePool)
-        if (resources != null) {
-            map.put("currentMana", resources.getCurrentMana());
-            map.put("currentStamina", resources.getCurrentStamina());
-        }
-
-        // 스킬 레벨
-        if (!skillLevels.isEmpty()) {
-            map.put("skillLevels", new ConcurrentHashMap<>(skillLevels));
-        }
-
-        // 직업 레벨
-        if (!professions.isEmpty()) {
-            map.put("professions", new ConcurrentHashMap<>(professions));
-        }
-
-        // 스킬 쿨타임 (필요 시 저장)
-        if (!skillCooldowns.isEmpty()) {
-            map.put("skillCooldowns", new ConcurrentHashMap<>(skillCooldowns));
-        }
-
-        return map;
+        return data;
     }
 
     /**
-     * Map 데이터로부터 PlayerData 객체를 복원합니다.
-     * 
-     * @param uuid 플레이어 UUID
-     * @param map  YAML에서 로드된 Map
-     * @return 복원된 PlayerData
+     * Reconstruct from Map (Deserialization)
      */
     @SuppressWarnings("unchecked")
     public static PlayerData fromMap(UUID uuid, Map<String, Object> map) {
-        PlayerData data = new PlayerData(uuid);
+        PlayerData pd = new PlayerData(uuid);
+        if (map != null) {
+            pd.data.putAll(map);
 
-        if (map.containsKey("classId"))
-            data.setClassId((String) map.get("classId"));
-        if (map.containsKey("level"))
-            data.setLevel((Integer) map.get("level"));
-        if (map.containsKey("experience")) {
-            Object exp = map.get("experience");
-            if (exp instanceof Number)
-                data.setExperience(((Number) exp).doubleValue());
-        }
+            // Sync Resources from map
+            if (map.containsKey("currentMana")) {
+                Number m = (Number) map.get("currentMana");
+                pd.resources.setCurrentMana(m.doubleValue());
+            }
+            if (map.containsKey("currentStamina")) {
+                Number s = (Number) map.get("currentStamina");
+                pd.resources.setCurrentStamina(s.doubleValue());
+            }
 
-        // 리소스 복원
-        if (map.containsKey("currentMana")) {
-            Object mana = map.get("currentMana");
-            if (mana instanceof Number)
-                data.getResources().setCurrentMana(((Number) mana).doubleValue());
-        }
-        if (map.containsKey("currentStamina")) {
-            Object stamina = map.get("currentStamina");
-            if (stamina instanceof Number)
-                data.getResources().setCurrentStamina(((Number) stamina).doubleValue());
-        }
+            // Ensure collections are mutable maps if they came from JSON types
+            ensureConcurrent("skillLevels", pd);
+            ensureConcurrent("professions", pd);
+            ensureConcurrent("skillCooldowns", pd);
 
-        // 스킬 레벨 복원
-        if (map.containsKey("skillLevels")) {
-            Object skillsObj = map.get("skillLevels");
-            if (skillsObj instanceof Map) {
-                Map<String, Integer> skills = (Map<String, Integer>) skillsObj;
-                data.getSkillLevels().putAll(skills);
+            // Fix types for Cooldowns (JSON double -> long)
+            Map<String, Object> cds = (Map<String, Object>) pd.data.get("skillCooldowns");
+            // We need to make sure they are Longs because getSkillCooldowns returns
+            // Map<String, Long>
+            for (Map.Entry<String, Object> entry : cds.entrySet()) {
+                if (entry.getValue() instanceof Number) {
+                    entry.setValue(((Number) entry.getValue()).longValue());
+                }
+            }
+
+            // Ensure "savedStats" is present and correct type
+            ensureConcurrent("savedStats", pd);
+            Map<String, Object> savedStats = (Map<String, Object>) pd.data.get("savedStats");
+            for (Map.Entry<String, Object> entry : savedStats.entrySet()) {
+                if (entry.getValue() instanceof Number) {
+                    entry.setValue(((Number) entry.getValue()).doubleValue());
+                }
             }
         }
+        pd.setLoaded(true);
+        return pd;
 
-        // 직업 레벨 복원
-        if (map.containsKey("professions")) {
-            Object profObj = map.get("professions");
-            if (profObj instanceof Map) {
-                Map<String, Integer> profs = (Map<String, Integer>) profObj;
-                data.getProfessions().putAll(profs);
+    }
+
+    private static void ensureConcurrent(String key, PlayerData pd) {
+        Object obj = pd.data.get(key);
+        if (obj instanceof Map) {
+            // Check if it's already ConcurrentHashMap, if not, wrap/copy
+            if (!(obj instanceof ConcurrentHashMap)) {
+                pd.data.put(key, new ConcurrentHashMap<>((Map<?, ?>) obj));
             }
+        } else {
+            pd.data.put(key, new ConcurrentHashMap<>());
         }
-
-        // 스킬 쿨타임 복원
-        if (map.containsKey("skillCooldowns")) {
-            Object cdObj = map.get("skillCooldowns");
-            if (cdObj instanceof Map) {
-                // YAML 로드 시 Long이 Integer로 오기도 하므로 Number로 처리
-                Map<String, Object> cooldowns = (Map<String, Object>) cdObj;
-                cooldowns.forEach((skill, val) -> {
-                    if (val instanceof Number) {
-                        data.getSkillCooldowns().put(skill, ((Number) val).longValue());
-                    }
-                });
-            }
-        }
-
-        data.setLoaded(true);
-        return data;
     }
 }
