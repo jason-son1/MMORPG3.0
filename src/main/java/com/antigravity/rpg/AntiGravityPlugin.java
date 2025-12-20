@@ -18,6 +18,10 @@ public class AntiGravityPlugin extends JavaPlugin {
         getLogger().info("Initializing AntiGravityRPG Core...");
 
         // 1. 의존성 주입 초기화 (Initialize Dependency Injection)
+        // [중요] config.yml이 없으면 기본 파일을 복사하여 저장합니다.
+        // 이 코드가 있어야 resources 폴더의 config.yml이 서버 폴더로 복사됩니다.
+        saveDefaultConfig();
+
         try {
             this.injector = Guice.createInjector(new RpgCoreModule(this));
         } catch (Exception e) {
