@@ -45,9 +45,12 @@ public class RpgCoreModule extends AbstractModule {
         bind(com.antigravity.rpg.core.event.PriorityEventBus.class).in(Singleton.class);
     }
 
-    @Provides
-    @Singleton
-    Logger provideLogger() {
-        return plugin.getLogger();
-    }
+    /*
+     * @Provides
+     * 
+     * @Singleton
+     * Logger provideLogger() {
+     * return plugin.getLogger();
+     * }
+     */
 }
