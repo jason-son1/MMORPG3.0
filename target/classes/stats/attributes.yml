@@ -1,0 +1,27 @@
+VITALITY:
+  displayName: "Vitality"
+  type: SIMPLE
+  min: 0
+  max: 1000
+  default: 0
+
+STRENGTH:
+  displayName: "Strength"
+  type: SIMPLE
+  min: 0
+  max: 1000
+  default: 0
+
+INTELLIGENCE:
+  displayName: "Intelligence"
+  type: SIMPLE
+  min: 0
+  max: 1000
+  default: 0
+
+DEXTERITY:
+  displayName: "Dexterity"
+  type: SIMPLE
+  min: 0
+  max: 1000
+  default: 0

@@ -5,7 +5,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
-public class PlayerData {
+public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
     @Getter
     private final UUID uuid;
 
@@ -200,6 +200,67 @@ public class PlayerData {
             }
         }
         return value;
+    }
+
+    // Services for Stat/Class logic
+    private static com.antigravity.rpg.core.engine.StatCalculator statCalculator;
+    private static com.antigravity.rpg.feature.classes.ClassRegistry classRegistry;
+
+    public static void initialize(com.antigravity.rpg.core.engine.StatCalculator sc,
+            com.antigravity.rpg.feature.classes.ClassRegistry cr) {
+        statCalculator = sc;
+        classRegistry = cr;
+    }
+
+    @Override
+    public double getStat(String statId) {
+        if (statCalculator == null)
+            return getRawStat(statId);
+        return statCalculator.getStat(this, statId);
+    }
+
+    @Override
+    public double getRawStat(String statId) {
+        // 1. Saved Stats (Allocated points or bonuses)
+        double val = getSavedStats().getOrDefault(statId, 0.0);
+
+        // 2. Class Stats
+        String cId = getClassId();
+        if (cId != null && !cId.isEmpty() && classRegistry != null) {
+            var classDefOpt = classRegistry.getClass(cId);
+            if (classDefOpt.isPresent()) {
+                var cDef = classDefOpt.get();
+                // Base
+                val += cDef.getBaseAttributes().getOrDefault(statId, 0.0);
+                // Scale
+                double scale = cDef.getScaleAttributes().getOrDefault(statId, 0.0);
+                if (scale != 0) {
+                    int lvl = getLevel();
+                    val += (scale * (lvl - 1));
+                }
+            }
+        }
+        return val;
+    }
+
+    @Override
+    public double getNativeAttributeValue(String attributeName) {
+        org.bukkit.entity.Player p = org.bukkit.Bukkit.getPlayer(uuid);
+        if (p != null) {
+            org.bukkit.attribute.Attribute attr = org.bukkit.attribute.Attribute
+                    .valueOf(attributeName.toUpperCase().replace(".", "_"));
+            var instance = p.getAttribute(attr);
+            if (instance != null) {
+                return instance.getValue();
+            }
+        }
+        return 0.0;
+    }
+
+    @Override
+    public String getName() {
+        org.bukkit.entity.Player p = org.bukkit.Bukkit.getPlayer(uuid);
+        return (p != null) ? p.getName() : uuid.toString();
     }
 
     private static void ensureConcurrent(String key, PlayerData pd) {

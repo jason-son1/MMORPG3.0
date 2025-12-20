@@ -1,0 +1,12 @@
+warrior:
+  displayName: "Warrior"
+  base_stats:
+    VITALITY: 10
+    STRENGTH: 15
+    MAX_HEALTH: 100 # Direct bonus on top of formula? Or raw base? Logic says getRawStat adds this.
+  scale_stats:
+    VITALITY: 1
+    STRENGTH: 2
+  skills:
+    - "heavy_strike"
+    - "bash"

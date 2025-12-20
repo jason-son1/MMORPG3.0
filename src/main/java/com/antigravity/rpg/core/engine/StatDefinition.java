@@ -12,4 +12,6 @@ public class StatDefinition {
     private final double minValue;
     private final double maxValue;
     private final double defaultValue;
+    private final String formula; // FORMULA 타입일 때 사용
+    private final String nativeAttribute; // NATIVE_ATTRIBUTE 타입일 때 사용 (예: generic.movement_speed)
 }

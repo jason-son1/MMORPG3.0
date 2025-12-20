@@ -68,6 +68,13 @@
             <version>3.0.1</version>
         </dependency>
 
+        <!-- Formula Parsing -->
+        <dependency>
+            <groupId>net.objecthunter</groupId>
+            <artifactId>exp4j</artifactId>
+            <version>0.4.8</version>
+        </dependency>
+
         <!-- ProtocolLib -->
         <dependency>
             <groupId>com.comphenix.protocol</groupId>
