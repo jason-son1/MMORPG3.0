@@ -1,0 +1,12 @@
+name: AntiGravityRPG
+version: 1.0-SNAPSHOT
+main: com.antigravity.rpg.AntiGravityPlugin
+api-version: 1.21
+authors: [AntiGravity]
+depend: [ProtocolLib]
+libraries:
+  - com.google.inject:guice:7.0.0
+  - com.zaxxer:HikariCP:5.1.0
+  - com.github.ben-manes.caffeine:caffeine:3.1.8
+# Note: Paper 1.19.3+ supports 'libraries' loading, minimizing shading needs.
+# However, we kept shading in pom.xml as backup, but using this is cleaner for Paper.
