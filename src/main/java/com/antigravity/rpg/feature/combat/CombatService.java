@@ -128,8 +128,8 @@ public class CombatService implements Service, Listener {
                 });
 
                 // 기본값 보장
-                if (stats.getStat(StatRegistry.PHYSICAL_DAMAGE) == 0)
-                    stats.setStat(StatRegistry.PHYSICAL_DAMAGE, 1);
+                if (stats.getStat("PHYSICAL_DAMAGE") == 0)
+                    stats.setStat("PHYSICAL_DAMAGE", 1);
             } else {
                 return null; // 플레이어 데이터가 아직 로드되지 않음
             }
@@ -149,8 +149,8 @@ public class CombatService implements Service, Listener {
 
     private EntityStatData getDefaultMonsterStats() {
         EntityStatData stats = new EntityStatData();
-        stats.setStat(StatRegistry.DEFENSE, 0);
-        stats.setStat(StatRegistry.PHYSICAL_DAMAGE, 5); // 기본 몬스터 데미지
+        stats.setStat("DEFENSE", 0);
+        stats.setStat("PHYSICAL_DAMAGE", 5); // 기본 몬스터 데미지
         return stats;
     }
 }

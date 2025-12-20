@@ -1,7 +1,6 @@
 package com.antigravity.rpg.feature.item;
 
 import com.antigravity.rpg.api.service.Service;
-import com.antigravity.rpg.core.engine.StatRegistry;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.bukkit.Material;
@@ -35,8 +34,8 @@ public class ItemService implements Service {
         // 테스트용 더미 템플릿 등록
         // 예: 'starter_sword' 아이템 정의
         ItemTemplate sword = new ItemTemplate("starter_sword", Material.IRON_SWORD, "Starter Blade");
-        sword.addStat(StatRegistry.PHYSICAL_DAMAGE, 10.0, 0.1, 2.0); // 기본 공격력 10, 분산 10%, 레벨당 +2
-        sword.addStat(StatRegistry.CRITICAL_CHANCE, 5.0, 0.0, 0.0); // 치명타 확률 5% (고정)
+        sword.addStat("PHYSICAL_DAMAGE", 10.0, 0.1, 2.0); // 기본 공격력 10, 분산 10%, 레벨당 +2
+        sword.addStat("CRITICAL_CHANCE", 5.0, 0.0, 0.0); // 치명타 확률 5% (고정)
         templates.put(sword.getId(), sword);
 
         logger.info("[ItemService] Loaded " + templates.size() + " templates.");

@@ -16,6 +16,12 @@ public class TriggerService implements Service {
     private final Map<String, Function<String, TriggerCondition>> conditionFactories = new HashMap<>();
     private final Map<String, Function<String, TriggerAction>> actionFactories = new HashMap<>();
     private final Random random = new Random();
+    private final com.antigravity.rpg.core.script.LuaScriptService luaScriptService;
+
+    @com.google.inject.Inject
+    public TriggerService(com.antigravity.rpg.core.script.LuaScriptService luaScriptService) {
+        this.luaScriptService = luaScriptService;
+    }
 
     @Override
     public void onEnable() {
@@ -42,6 +48,14 @@ public class TriggerService implements Service {
 
         registerAction("log", args -> ctx -> {
             System.out.println("[TriggerLog] " + args);
+        });
+
+        registerAction("execute_script", args -> ctx -> {
+            if (luaScriptService != null) {
+                // 스크립트 실행 (단순 실행 예시, 필요 시 인자 전달 구조 개선 필요)
+                // 현재 구조상으론 스크립트 파일명을 인자로 받음
+                luaScriptService.executeScript(args.trim(), ctx);
+            }
         });
     }
 

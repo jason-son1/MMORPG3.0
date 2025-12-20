@@ -16,18 +16,6 @@ public class StatRegistry {
     private final Map<String, StatDefinition> stats = new ConcurrentHashMap<>();
     private final AntiGravityPlugin plugin;
 
-    // Standard Stats (Kept for code compatibility, but defined in config)
-    public static final String MAX_HEALTH = "MAX_HEALTH";
-    public static final String MAX_MANA = "MAX_MANA";
-    public static final String HEALTH_REGEN = "HEALTH_REGEN";
-    public static final String MANA_REGEN = "MANA_REGEN";
-    public static final String PHYSICAL_DAMAGE = "PHYSICAL_DAMAGE";
-    public static final String MAGICAL_DAMAGE = "MAGICAL_DAMAGE";
-    public static final String DEFENSE = "DEFENSE";
-    public static final String CRITICAL_CHANCE = "CRITICAL_CHANCE";
-    public static final String CRITICAL_DAMAGE = "CRITICAL_DAMAGE";
-    public static final String MOVEMENT_SPEED = "MOVEMENT_SPEED";
-
     @Inject
     public StatRegistry(AntiGravityPlugin plugin) {
         this.plugin = plugin;
@@ -65,7 +53,7 @@ public class StatRegistry {
             StatDefinition defObj = new StatDefinition(key, name, type, min, max, def);
             register(defObj);
 
-            plugin.getLogger().info("Loaded stat: " + key + " (" + name + ")");
+            plugin.getLogger().info("스탯 로드됨: " + key + " (" + name + ")");
         }
     }
 

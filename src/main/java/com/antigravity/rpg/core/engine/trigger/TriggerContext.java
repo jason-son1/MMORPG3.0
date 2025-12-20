@@ -16,4 +16,8 @@ public class TriggerContext {
         this.player = player;
         this.target = target;
     }
+
+    public TriggerContext(Player player) {
+        this(player, null);
+    }
 }

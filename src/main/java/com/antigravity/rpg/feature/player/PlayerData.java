@@ -138,51 +138,68 @@ public class PlayerData {
     }
 
     /**
-     * Reconstruct from Map (Deserialization)
+     * Map으로부터 데이터 복원 (역직렬화)
      */
     @SuppressWarnings("unchecked")
     public static PlayerData fromMap(UUID uuid, Map<String, Object> map) {
         PlayerData pd = new PlayerData(uuid);
         if (map != null) {
-            pd.data.putAll(map);
+            // Gson 등으로 로드된 데이터의 타입 보정 (Double -> Long/Integer)
+            Map<String, Object> fixedMap = fixNumberTypes(map);
+            pd.data.putAll(fixedMap);
 
-            // Sync Resources from map
-            if (map.containsKey("currentMana")) {
-                Number m = (Number) map.get("currentMana");
+            // 리소스 동기화
+            if (pd.data.containsKey("currentMana")) {
+                Number m = (Number) pd.data.get("currentMana");
                 pd.resources.setCurrentMana(m.doubleValue());
             }
-            if (map.containsKey("currentStamina")) {
-                Number s = (Number) map.get("currentStamina");
+            if (pd.data.containsKey("currentStamina")) {
+                Number s = (Number) pd.data.get("currentStamina");
                 pd.resources.setCurrentStamina(s.doubleValue());
             }
 
-            // Ensure collections are mutable maps if they came from JSON types
+            // 가변성(Mutability) 보장
             ensureConcurrent("skillLevels", pd);
             ensureConcurrent("professions", pd);
             ensureConcurrent("skillCooldowns", pd);
-
-            // Fix types for Cooldowns (JSON double -> long)
-            Map<String, Object> cds = (Map<String, Object>) pd.data.get("skillCooldowns");
-            // We need to make sure they are Longs because getSkillCooldowns returns
-            // Map<String, Long>
-            for (Map.Entry<String, Object> entry : cds.entrySet()) {
-                if (entry.getValue() instanceof Number) {
-                    entry.setValue(((Number) entry.getValue()).longValue());
-                }
-            }
-
-            // Ensure "savedStats" is present and correct type
             ensureConcurrent("savedStats", pd);
-            Map<String, Object> savedStats = (Map<String, Object>) pd.data.get("savedStats");
-            for (Map.Entry<String, Object> entry : savedStats.entrySet()) {
-                if (entry.getValue() instanceof Number) {
-                    entry.setValue(((Number) entry.getValue()).doubleValue());
-                }
-            }
         }
         pd.setLoaded(true);
         return pd;
+    }
 
+    /**
+     * 재귀적으로 맵/리스트를 순회하며 Double로 변환된 정수형 데이터를 Long/Integer로 복구합니다.
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> fixNumberTypes(Map<String, Object> input) {
+        Map<String, Object> output = new ConcurrentHashMap<>();
+        for (Map.Entry<String, Object> entry : input.entrySet()) {
+            Object value = entry.getValue();
+            output.put(entry.getKey(), fixValue(value));
+        }
+        return output;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object fixValue(Object value) {
+        if (value instanceof Map) {
+            return fixNumberTypes((Map<String, Object>) value);
+        } else if (value instanceof java.util.List) {
+            java.util.List<Object> list = (java.util.List<Object>) value;
+            java.util.List<Object> newList = new java.util.ArrayList<>();
+            for (Object item : list) {
+                newList.add(fixValue(item));
+            }
+            return newList;
+        } else if (value instanceof Double) {
+            double d = (Double) value;
+            // 정수와 같으면 Long으로 변환 (소수점이 없으면)
+            if (d == Math.floor(d) && !Double.isInfinite(d)) {
+                return (long) d;
+            }
+        }
+        return value;
     }
 
     private static void ensureConcurrent(String key, PlayerData pd) {

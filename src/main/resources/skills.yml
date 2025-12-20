@@ -1,0 +1,31 @@
+skills:
+  fireball:
+    name: "화염구"
+    cooldown: 1
+    mana_cost: 15
+    stamina_cost: 0
+    actions:
+      - "sound ENTITY_GHAST_SHOOT"
+      - "execute_script calculate_fireball_damage.lua" # Lua로 투사체 발사 및 데미지 계산 위임(가정)
+    conditions: []
+
+  heavy_strike:
+    name: "강하게 내려치기"
+    cooldown: 3
+    mana_cost: 0
+    stamina_cost: 20
+    actions:
+      - "sound ENTITY_GENERIC_EXPLODE"
+      # 여기에 실제 효과(범위 데미지 등)를 처리하는 스크립트 연결 가능
+      # "execute_script heavy_strike.lua"
+    conditions: []
+
+  heal:
+    name: "치유"
+    cooldown: 5
+    mana_cost: 30
+    stamina_cost: 0
+    actions:
+      - "sound ENTITY_PLAYER_LEVELUP"
+      - "execute_script heal.lua" # 치유 로직
+    conditions: []

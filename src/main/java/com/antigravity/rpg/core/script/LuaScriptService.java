@@ -68,6 +68,43 @@ public class LuaScriptService implements Service {
         }
     }
 
+    /**
+     * 특정 Lua 스크립트를 실행합니다.
+     * 
+     * @param scriptName 실행할 스크립트 파일명 (예: "fireball.lua")
+     * @param context    트리거 컨텍스트
+     */
+    public void executeScript(String scriptName, com.antigravity.rpg.core.engine.trigger.TriggerContext context) {
+        File file = new File(plugin.getDataFolder(), "scripts/" + scriptName);
+        if (!file.exists()) {
+            // scripts 폴더에 없으면 루트에서 시도
+            file = new File(plugin.getDataFolder(), scriptName);
+            if (!file.exists()) {
+                plugin.getLogger().warning("스크립트를 찾을 수 없습니다: " + scriptName);
+                return;
+            }
+        }
+
+        try (InputStreamReader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
+            // 스크립트를 로드하여 실행
+            // 실행 전에 전역 변수나 인자로 컨텍스트 전달 필요
+            // 여기서는 스크립트 내에서 'context'라는 전역 변수를 사용한다고 가정하거나
+            // 스크립트 자체가 함수를 리턴한다고 가정할 수 있음.
+            // 간단하게: 스크립트를 로드하고 실행. 스크립트 내에서 Java 객체 접근 가능.
+
+            // 전역 변수 설정
+            globals.set("context", CoerceJavaToLua.coerce(context));
+            globals.set("player", CoerceJavaToLua.coerce(context.getPlayer()));
+
+            LuaValue chunk = globals.load(reader, scriptName);
+            chunk.call();
+
+        } catch (Exception e) {
+            plugin.getLogger().severe("스크립트 실행 중 오류 발생: " + scriptName);
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void onDisable() {
         // Cleanup if needed
