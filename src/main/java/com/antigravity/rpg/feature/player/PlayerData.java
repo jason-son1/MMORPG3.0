@@ -10,6 +10,7 @@ public class PlayerData {
     private final UUID uuid;
     private final ResourcePool resources = new ResourcePool();
     private final Map<String, Integer> skillLevels = new ConcurrentHashMap<>();
+    private final Map<String, Integer> professions = new ConcurrentHashMap<>(); // Profession Levels
     private final Map<String, Double> savedStats = new ConcurrentHashMap<>();
 
     // Metadata / Temp Flags
@@ -20,6 +21,10 @@ public class PlayerData {
     private double experience;
 
     private final Map<String, Long> skillCooldowns = new ConcurrentHashMap<>();
+
+    public Map<String, Integer> getProfessions() {
+        return professions;
+    }
 
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
@@ -45,6 +50,11 @@ public class PlayerData {
         // 스킬 레벨
         if (!skillLevels.isEmpty()) {
             map.put("skillLevels", new ConcurrentHashMap<>(skillLevels));
+        }
+
+        // 직업 레벨
+        if (!professions.isEmpty()) {
+            map.put("professions", new ConcurrentHashMap<>(professions));
         }
 
         // 스킬 쿨타임 (필요 시 저장)
@@ -94,6 +104,15 @@ public class PlayerData {
             if (skillsObj instanceof Map) {
                 Map<String, Integer> skills = (Map<String, Integer>) skillsObj;
                 data.getSkillLevels().putAll(skills);
+            }
+        }
+
+        // 직업 레벨 복원
+        if (map.containsKey("professions")) {
+            Object profObj = map.get("professions");
+            if (profObj instanceof Map) {
+                Map<String, Integer> profs = (Map<String, Integer>) profObj;
+                data.getProfessions().putAll(profs);
             }
         }
 

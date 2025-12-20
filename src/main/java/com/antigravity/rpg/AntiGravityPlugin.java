@@ -54,6 +54,9 @@ public class AntiGravityPlugin extends JavaPlugin {
             // 전투 시스템 서비스
             serviceManager.startService(injector.getInstance(com.antigravity.rpg.feature.combat.CombatService.class));
 
+            // 스킬 시전 서비스
+            serviceManager.startService(injector.getInstance(com.antigravity.rpg.feature.skill.SkillCastService.class));
+
             // 데이터 Import/Export 서비스 (매니저 등록 불필요, 커맨드 핸들링용)
             com.antigravity.rpg.data.service.DataImportExportService dataImportExportService = injector
                     .getInstance(com.antigravity.rpg.data.service.DataImportExportService.class);

@@ -4,6 +4,7 @@ import com.antigravity.rpg.api.service.Service;
 import com.antigravity.rpg.core.engine.*;
 import com.antigravity.rpg.feature.player.PlayerData;
 import com.antigravity.rpg.feature.player.PlayerProfileService;
+import com.antigravity.rpg.core.ecs.SimpleEntityRegistry;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.bukkit.entity.LivingEntity;
@@ -27,13 +28,15 @@ public class CombatService implements Service, Listener {
     private final JavaPlugin plugin;
     private final DamageProcessor damageProcessor;
     private final PlayerProfileService playerProfileService;
+    private final SimpleEntityRegistry entityRegistry;
 
     @Inject
     public CombatService(JavaPlugin plugin, DamageProcessor damageProcessor,
-            PlayerProfileService playerProfileService) {
+            PlayerProfileService playerProfileService, SimpleEntityRegistry entityRegistry) {
         this.plugin = plugin;
         this.damageProcessor = damageProcessor;
         this.playerProfileService = playerProfileService;
+        this.entityRegistry = entityRegistry;
     }
 
     @Override
@@ -100,7 +103,11 @@ public class CombatService implements Service, Listener {
         // 최종 데미지 적용
         event.setDamage(context.getFinalDamage());
 
-        // TODO: 시각 효과 및 피드백 추가
+        // 크리티컬 효과 (사운드/파티클)
+        if (context.isCritical()) {
+            victim.getWorld().spawnParticle(org.bukkit.Particle.CRIT, victim.getLocation().add(0, 1, 0), 10);
+            victim.getWorld().playSound(victim.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 1.0f);
+        }
     }
 
     private EntityStatData getStats(LivingEntity entity) {
@@ -114,7 +121,11 @@ public class CombatService implements Service, Listener {
 
             if (data != null) {
                 // PlayerData의 스탯을 EntityStatData로 복사
-                data.getSavedStats().forEach(stats::setStat);
+                data.getSavedStats().forEach((key, value) -> {
+                    if (value != null) {
+                        stats.setStat(key, value);
+                    }
+                });
 
                 // 기본값 보장
                 if (stats.getStat(StatRegistry.PHYSICAL_DAMAGE) == 0)
@@ -123,12 +134,23 @@ public class CombatService implements Service, Listener {
                 return null; // 플레이어 데이터가 아직 로드되지 않음
             }
         } else {
-            // 몬스터: 임시 기본 스탯 제공
-            // Todo: MobManager와 연동 필요
-            stats.setStat(StatRegistry.DEFENSE, 0);
-            stats.setStat(StatRegistry.PHYSICAL_DAMAGE, 5); // 기본 몬스터 데미지
+            // 몬스터: SimpleEntityRegistry에서 조회
+            // 있으면 사용, 없으면 기본값
+            if (entityRegistry.hasComponent(entity.getUniqueId(), EntityStatData.class)) {
+                return entityRegistry.getComponent(entity.getUniqueId(), EntityStatData.class)
+                        .orElse(getDefaultMonsterStats());
+            } else {
+                return getDefaultMonsterStats();
+            }
         }
 
+        return stats;
+    }
+
+    private EntityStatData getDefaultMonsterStats() {
+        EntityStatData stats = new EntityStatData();
+        stats.setStat(StatRegistry.DEFENSE, 0);
+        stats.setStat(StatRegistry.PHYSICAL_DAMAGE, 5); // 기본 몬스터 데미지
         return stats;
     }
 }

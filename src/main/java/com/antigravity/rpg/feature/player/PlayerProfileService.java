@@ -124,6 +124,19 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
                     }
                 }
             }
+
+            // 3. Load professions (player_professions)
+            String sqlProfessions = "SELECT profession_id, level FROM player_professions WHERE uuid = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlProfessions)) {
+                stmt.setString(1, key.toString());
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        String profId = rs.getString("profession_id");
+                        int level = rs.getInt("level");
+                        data.getProfessions().put(profId, level);
+                    }
+                }
+            }
         }
 
         data.setLoaded(true);
@@ -133,50 +146,80 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
     @Override
     protected void saveToDb(UUID key, PlayerData value) throws Exception {
         try (Connection conn = databaseService.getConnection()) {
-            // 1. Save basic data (player_data)
-            String sqlData = "INSERT INTO player_data (uuid, class_id, level, experience, current_mana, current_stamina, last_login) "
-                    +
-                    "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
-                    "ON DUPLICATE KEY UPDATE " +
-                    "class_id = VALUES(class_id), " +
-                    "level = VALUES(level), " +
-                    "experience = VALUES(experience), " +
-                    "current_mana = VALUES(current_mana), " +
-                    "current_stamina = VALUES(current_stamina), " +
-                    "last_login = CURRENT_TIMESTAMP";
+            boolean originalAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false); // Start Transaction
 
-            try (PreparedStatement stmt = conn.prepareStatement(sqlData)) {
-                stmt.setString(1, key.toString());
-                stmt.setString(2, value.getClassId());
-                stmt.setInt(3, value.getLevel());
-                stmt.setDouble(4, value.getExperience());
-                stmt.setDouble(5, value.getResources().getCurrentMana());
-                stmt.setDouble(6, value.getResources().getCurrentStamina());
-                stmt.executeUpdate();
-            }
-
-            // 2. Save skills (player_skills)
-            if (!value.getSkillLevels().isEmpty()) {
-                String sqlSkills = "INSERT INTO player_skills (uuid, skill_id, level, cooldown_end) " +
-                        "VALUES (?, ?, ?, ?) " +
+            try {
+                // 1. Save basic data (player_data)
+                String sqlData = "INSERT INTO player_data (uuid, class_id, level, experience, current_mana, current_stamina, last_login) "
+                        +
+                        "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
                         "ON DUPLICATE KEY UPDATE " +
+                        "class_id = VALUES(class_id), " +
                         "level = VALUES(level), " +
-                        "cooldown_end = VALUES(cooldown_end)";
+                        "experience = VALUES(experience), " +
+                        "current_mana = VALUES(current_mana), " +
+                        "current_stamina = VALUES(current_stamina), " +
+                        "last_login = CURRENT_TIMESTAMP";
 
-                try (PreparedStatement stmt = conn.prepareStatement(sqlSkills)) {
-                    for (Map.Entry<String, Integer> entry : value.getSkillLevels().entrySet()) {
-                        String skillId = entry.getKey();
-                        int level = entry.getValue();
-                        long cd = value.getSkillCooldowns().getOrDefault(skillId, 0L);
-
-                        stmt.setString(1, key.toString());
-                        stmt.setString(2, skillId);
-                        stmt.setInt(3, level);
-                        stmt.setLong(4, cd);
-                        stmt.addBatch();
-                    }
-                    stmt.executeBatch();
+                try (PreparedStatement stmt = conn.prepareStatement(sqlData)) {
+                    stmt.setString(1, key.toString());
+                    stmt.setString(2, value.getClassId());
+                    stmt.setInt(3, value.getLevel());
+                    stmt.setDouble(4, value.getExperience());
+                    stmt.setDouble(5, value.getResources().getCurrentMana());
+                    stmt.setDouble(6, value.getResources().getCurrentStamina());
+                    stmt.executeUpdate();
                 }
+
+                // 2. Save skills (player_skills)
+                if (!value.getSkillLevels().isEmpty()) {
+                    String sqlSkills = "INSERT INTO player_skills (uuid, skill_id, level, cooldown_end) " +
+                            "VALUES (?, ?, ?, ?) " +
+                            "ON DUPLICATE KEY UPDATE " +
+                            "level = VALUES(level), " +
+                            "cooldown_end = VALUES(cooldown_end)";
+
+                    try (PreparedStatement stmt = conn.prepareStatement(sqlSkills)) {
+                        for (Map.Entry<String, Integer> entry : value.getSkillLevels().entrySet()) {
+                            String skillId = entry.getKey();
+                            int level = entry.getValue();
+                            long cd = value.getSkillCooldowns().getOrDefault(skillId, 0L);
+
+                            stmt.setString(1, key.toString());
+                            stmt.setString(2, skillId);
+                            stmt.setInt(3, level);
+                            stmt.setLong(4, cd);
+                            stmt.addBatch();
+                        }
+                        stmt.executeBatch();
+                    }
+                }
+
+                // 3. Save professions (player_professions)
+                if (!value.getProfessions().isEmpty()) {
+                    String sqlProf = "INSERT INTO player_professions (uuid, profession_id, level, experience) " +
+                            "VALUES (?, ?, ?, 0) " +
+                            "ON DUPLICATE KEY UPDATE " +
+                            "level = VALUES(level)";
+
+                    try (PreparedStatement stmt = conn.prepareStatement(sqlProf)) {
+                        for (Map.Entry<String, Integer> entry : value.getProfessions().entrySet()) {
+                            stmt.setString(1, key.toString());
+                            stmt.setString(2, entry.getKey());
+                            stmt.setInt(3, entry.getValue());
+                            stmt.addBatch();
+                        }
+                        stmt.executeBatch();
+                    }
+                }
+
+                conn.commit();
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(originalAutoCommit);
             }
         }
     }
