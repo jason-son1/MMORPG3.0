@@ -10,3 +10,10 @@ libraries:
   - com.github.ben-manes.caffeine:caffeine:3.1.8
 # Note: Paper 1.19.3+ supports 'libraries' loading, minimizing shading needs.
 # However, we kept shading in pom.xml as backup, but using this is cleaner for Paper.
+
+commands:
+  rpgadmin:
+    description: AntiGravityRPG Admin Commands
+    usage: /rpgadmin [subcommand]
+    permission: antigravity.admin
+    aliases: [ra]

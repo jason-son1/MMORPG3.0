@@ -12,6 +12,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
@@ -84,14 +89,96 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
 
     @Override
     protected PlayerData loadFromDb(UUID key) throws Exception {
-        // DB 로드 로직 (구현 필요)
-        // 실제 구현 시 DatabaseService를 사용하여 SQL 쿼리 실행
-        return new PlayerData(key);
+        PlayerData data = new PlayerData(key);
+
+        try (Connection conn = databaseService.getConnection()) {
+            // 1. Load basic data (player_data)
+            String sqlData = "SELECT class_id, level, experience, current_mana, current_stamina FROM player_data WHERE uuid = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlData)) {
+                stmt.setString(1, key.toString());
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        data.setClassId(rs.getString("class_id"));
+                        data.setLevel(rs.getInt("level"));
+                        data.setExperience(rs.getDouble("experience"));
+                        data.getResources().setCurrentMana(rs.getDouble("current_mana"));
+                        data.getResources().setCurrentStamina(rs.getDouble("current_stamina"));
+                    }
+                }
+            }
+
+            // 2. Load skills (player_skills)
+            String sqlSkills = "SELECT skill_id, level, cooldown_end FROM player_skills WHERE uuid = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlSkills)) {
+                stmt.setString(1, key.toString());
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        String skillId = rs.getString("skill_id");
+                        int level = rs.getInt("level");
+                        long cd = rs.getLong("cooldown_end");
+
+                        data.getSkillLevels().put(skillId, level);
+                        if (cd > 0) {
+                            data.getSkillCooldowns().put(skillId, cd);
+                        }
+                    }
+                }
+            }
+        }
+
+        data.setLoaded(true);
+        return data;
     }
 
     @Override
     protected void saveToDb(UUID key, PlayerData value) throws Exception {
-        // DB 저장 로직 (구현 필요)
+        try (Connection conn = databaseService.getConnection()) {
+            // 1. Save basic data (player_data)
+            String sqlData = "INSERT INTO player_data (uuid, class_id, level, experience, current_mana, current_stamina, last_login) "
+                    +
+                    "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
+                    "ON DUPLICATE KEY UPDATE " +
+                    "class_id = VALUES(class_id), " +
+                    "level = VALUES(level), " +
+                    "experience = VALUES(experience), " +
+                    "current_mana = VALUES(current_mana), " +
+                    "current_stamina = VALUES(current_stamina), " +
+                    "last_login = CURRENT_TIMESTAMP";
+
+            try (PreparedStatement stmt = conn.prepareStatement(sqlData)) {
+                stmt.setString(1, key.toString());
+                stmt.setString(2, value.getClassId());
+                stmt.setInt(3, value.getLevel());
+                stmt.setDouble(4, value.getExperience());
+                stmt.setDouble(5, value.getResources().getCurrentMana());
+                stmt.setDouble(6, value.getResources().getCurrentStamina());
+                stmt.executeUpdate();
+            }
+
+            // 2. Save skills (player_skills)
+            if (!value.getSkillLevels().isEmpty()) {
+                String sqlSkills = "INSERT INTO player_skills (uuid, skill_id, level, cooldown_end) " +
+                        "VALUES (?, ?, ?, ?) " +
+                        "ON DUPLICATE KEY UPDATE " +
+                        "level = VALUES(level), " +
+                        "cooldown_end = VALUES(cooldown_end)";
+
+                try (PreparedStatement stmt = conn.prepareStatement(sqlSkills)) {
+                    for (Map.Entry<String, Integer> entry : value.getSkillLevels().entrySet()) {
+                        String skillId = entry.getKey();
+                        int level = entry.getValue();
+                        long cd = value.getSkillCooldowns().getOrDefault(skillId, 0L);
+
+                        stmt.setString(1, key.toString());
+                        stmt.setString(2, skillId);
+                        stmt.setInt(3, level);
+                        stmt.setLong(4, cd);
+                        stmt.addBatch();
+                    }
+                    stmt.executeBatch();
+                }
+            }
+        }
     }
 
     @Override

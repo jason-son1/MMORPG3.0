@@ -29,7 +29,7 @@ public class HikariDatabaseService implements DatabaseService {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:mysql://localhost:3306/minecraft_rpg");
         config.setUsername("root");
-        config.setPassword("password");
+        config.setPassword("sks74537453!");
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");

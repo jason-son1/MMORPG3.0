@@ -3,4 +3,6 @@ database:
   port: 3306
   name: minecraft_rpg
   username: root
-  password: "sks74537453!"
+  # 수정 전: password: sks74537453!
+  # 수정 후 (따옴표 추가):
+  password: "sks74537453!"  # 새로 만든 비밀번호
