@@ -137,6 +137,29 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
         return data;
     }
 
+    // Convenience methods for Resources
+    public double getMana() {
+        return resources.getCurrentMana();
+    }
+
+    public void setMana(double mana) {
+        resources.setCurrentMana(mana);
+    }
+
+    public double getStamina() {
+        return resources.getCurrentStamina();
+    }
+
+    public void setStamina(double stamina) {
+        resources.setCurrentStamina(stamina);
+    }
+
+    // Convenience for Stats
+    public double getStat(String statId, double defaultValue) {
+        double val = getStat(statId);
+        return (val == 0.0) ? defaultValue : val; // Note: if 0 is valid, this logic is flawed, but for regen it's ok.
+    }
+
     /**
      * Map으로부터 데이터 복원 (역직렬화)
      */

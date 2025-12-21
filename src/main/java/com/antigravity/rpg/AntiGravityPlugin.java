@@ -64,6 +64,21 @@ public class AntiGravityPlugin extends JavaPlugin {
             // 스킬 시전 서비스
             serviceManager.startService(injector.getInstance(com.antigravity.rpg.feature.skill.SkillCastService.class));
 
+            // [NEW] ECS 시스템 매니저 시작
+            com.antigravity.rpg.core.ecs.SystemManager systemManager = injector
+                    .getInstance(com.antigravity.rpg.core.ecs.SystemManager.class);
+
+            // 시스템 등록
+            systemManager.registerSystem(com.antigravity.rpg.core.ecs.system.HealthRegenSystem.class);
+            systemManager.registerSystem(com.antigravity.rpg.core.ecs.system.CooldownSystem.class);
+
+            // 매니저 서비스 시작 (게임 루프 가동)
+            serviceManager.startService(systemManager);
+
+            // [NEW] Universal Event Listener 등록
+            getServer().getPluginManager().registerEvents(
+                    injector.getInstance(com.antigravity.rpg.core.engine.listener.UniversalEventListener.class), this);
+
             // 데이터 Import/Export 서비스 및 관리자 명령어
             if (getCommand("rpgadmin") != null) {
                 getCommand("rpgadmin").setExecutor(new com.antigravity.rpg.command.admin.DataSyncCommand(
