@@ -1,0 +1,21 @@
+name: "Meteor"
+cooldown: 15.0
+cost:
+  MANA: 100
+
+triggers:
+  ON_CAST:
+    - type: DELAY
+      ticks: 20
+    - type: SOUND
+      sound: ENTITY_GENERIC_EXPLODE
+    - type: DAMAGE
+      radius: 5.0
+      amount: "INT * 5.0 + 100"
+      element: FIRE
+    - type: APPLY_TAG
+      tag: "#BURN"
+      duration: 5.0
+    - type: PARTICLE
+      particle: EXPLOSION_HUGE
+      count: 1

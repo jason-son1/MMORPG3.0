@@ -54,4 +54,21 @@ public abstract class AbstractCachedRepository<K, V> implements Repository<K, V>
             }
         }, executor);
     }
+
+    /**
+     * Manually registers a value into the cache, bypassing the database load.
+     * Useful when data is loaded from an external source (e.g. JSON file).
+     */
+    public void register(K key, V value) {
+        cache.put(key, CompletableFuture.completedFuture(value));
+    }
+
+    /**
+     * Manually removes a value from the cache, bypassing the database delete.
+     * Useful when data is saved to an external source and no longer needed in
+     * memory.
+     */
+    public void unregister(K key) {
+        cache.synchronous().invalidate(key);
+    }
 }

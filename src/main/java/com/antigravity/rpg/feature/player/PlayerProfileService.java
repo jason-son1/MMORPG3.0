@@ -140,4 +140,12 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
             stmt.executeUpdate();
         }
     }
+
+    public <T> T getComponent(UUID uuid, Class<T> componentClass) {
+        PlayerData data = find(uuid).getNow(null);
+        if (data == null) {
+            return null;
+        }
+        return data.getComponent(componentClass);
+    }
 }

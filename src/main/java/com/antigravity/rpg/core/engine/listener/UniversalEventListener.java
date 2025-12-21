@@ -3,18 +3,21 @@ package com.antigravity.rpg.core.engine.listener;
 import com.antigravity.rpg.core.engine.trigger.TriggerContext;
 import com.antigravity.rpg.core.engine.trigger.TriggerService;
 import com.antigravity.rpg.feature.item.ItemService;
-import com.antigravity.rpg.feature.player.PlayerData;
 import com.antigravity.rpg.feature.player.PlayerProfileService;
 import com.google.inject.Inject;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerToggleSprintEvent;
 import org.bukkit.inventory.ItemStack;
 
 /**
- * Bukkit 이벤트를 감지하여 TriggerService로 전달하는 리스너입니다.
+ * 다양한 Bukkit 이벤트를 감지하여 TriggerService로 전달하는 범용 리스너입니다.
  */
 public class UniversalEventListener implements Listener {
 
@@ -36,17 +39,52 @@ public class UniversalEventListener implements Listener {
             return;
 
         Player attacker = (Player) event.getDamager();
-
-        // 아이템 트리거 확인 (예: 공격 시 발동)
         ItemStack item = attacker.getInventory().getItemInMainHand();
-        // ItemService를 통해 아이템에 정의된 "ON_HIT" 트리거 등을 가져와야 함 (여기서는 가정된 로직)
 
-        // TriggerContext 생성 및 스킬/아이템 로직 실행 -> TriggerService.execute(...)
-        // 현재는 구조만 잡고, 실제 아이템 연동은 ItemService 구현에 따라 달라짐
+        // 트리거 컨텍스트 생성: ATTACK
+        TriggerContext context = new TriggerContext("ATTACK", attacker, event.getEntity(), event);
+        triggerService.execute(context);
+    }
+
+    @EventHandler
+    public void onDamaged(EntityDamageEvent event) {
+        if (event.getEntity() instanceof Player) {
+            Player victim = (Player) event.getEntity();
+            // 트리거 컨텍스트 생성: DAMAGED
+            TriggerContext context = new TriggerContext("DAMAGED", victim, null, event);
+            triggerService.execute(context);
+        }
     }
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
-        // 우클릭 등 상호작용 트리거
+        if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+            // 트리거 컨텍스트 생성: RIGHT_CLICK
+            TriggerContext context = new TriggerContext("RIGHT_CLICK", event.getPlayer(), null, event);
+            triggerService.execute(context);
+        } else if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+            // 트리거 컨텍스트 생성: LEFT_CLICK
+            TriggerContext context = new TriggerContext("LEFT_CLICK", event.getPlayer(), null, event);
+            triggerService.execute(context);
+        }
+    }
+
+    @EventHandler
+    public void onProjectileHit(ProjectileHitEvent event) {
+        if (event.getEntity().getShooter() instanceof Player) {
+            Player shooter = (Player) event.getEntity().getShooter();
+            // 트리거 컨텍스트 생성: PROJECTILE_HIT
+            TriggerContext context = new TriggerContext("PROJECTILE_HIT", shooter, event.getHitEntity(), event);
+            triggerService.execute(context);
+        }
+    }
+
+    @EventHandler
+    public void onSprintToggle(PlayerToggleSprintEvent event) {
+        if (event.isSprinting()) {
+            // 트리거 컨텍스트 생성: SPRINT_START
+            TriggerContext context = new TriggerContext("SPRINT_START", event.getPlayer(), null, event);
+            triggerService.execute(context);
+        }
     }
 }

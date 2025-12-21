@@ -8,16 +8,24 @@ import java.util.Map;
 
 @Data
 public class TriggerContext {
+    private final String triggerType;
     private final Player player;
     private final Entity target; // Optional
+    private final org.bukkit.event.Event event; // Optional, null if cast by command/script
     private final Map<String, Object> variables = new HashMap<>();
 
-    public TriggerContext(Player player, Entity target) {
+    public TriggerContext(String triggerType, Player player, Entity target, org.bukkit.event.Event event) {
+        this.triggerType = triggerType;
         this.player = player;
         this.target = target;
+        this.event = event;
     }
 
     public TriggerContext(Player player) {
-        this(player, null);
+        this("SCRIPT", player, null, null);
+    }
+
+    public TriggerContext(Player player, Entity target) {
+        this("SCRIPT", player, target, null);
     }
 }

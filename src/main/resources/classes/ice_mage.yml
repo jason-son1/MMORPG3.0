@@ -1,0 +1,16 @@
+name: "Ice Mage"
+base_health: 100
+base_mana: 200
+
+traits:
+  - code: "FROST_TOUCH"
+    triggers:
+      ON_ATTACK:
+        - type: APPLY_TAG
+          tag: "#SLOW"
+          duration: 2.0
+          
+constants:
+  MANA_REGEN: "10 + (WIS * 0.2)"
+  # 비오는 날 마나 회복 2배
+  MANA_REGEN_CONDITION: "World.isRaining() ? 2.0 : 1.0"

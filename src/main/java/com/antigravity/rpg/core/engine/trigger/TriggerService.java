@@ -3,7 +3,6 @@ package com.antigravity.rpg.core.engine.trigger;
 import com.antigravity.rpg.api.service.Service;
 import com.antigravity.rpg.core.engine.action.ActionFactory;
 import com.google.inject.Singleton;
-import org.bukkit.Sound;
 
 import java.util.HashMap;
 import java.util.List;
@@ -43,9 +42,9 @@ public class TriggerService implements Service {
         });
 
         // Actions Basic Registrations
-        actionFactory.register("SOUND", com.antigravity.rpg.core.engine.action.impl.SoundAction::new);
-        actionFactory.register("DAMAGE", com.antigravity.rpg.core.engine.action.impl.DamageAction::new);
-        actionFactory.register("PROJECTILE", com.antigravity.rpg.core.engine.action.impl.ProjectileAction::new);
+        actionFactory.registerAction("SOUND", com.antigravity.rpg.core.engine.action.impl.SoundAction.class);
+        actionFactory.registerAction("DAMAGE", com.antigravity.rpg.core.engine.action.impl.DamageAction.class);
+        actionFactory.registerAction("PROJECTILE", com.antigravity.rpg.core.engine.action.impl.ProjectileAction.class);
     }
 
     public void registerCondition(String key, Function<String, TriggerCondition> factory) {
@@ -111,6 +110,19 @@ public class TriggerService implements Service {
         }
         for (TriggerAction action : trigger.getActions()) {
             action.execute(context);
+        }
+    }
+
+    // Global Event Bus for Triggers
+    private final java.util.List<java.util.function.Consumer<TriggerContext>> globalListeners = new java.util.ArrayList<>();
+
+    public void registerGlobalTrigger(java.util.function.Consumer<TriggerContext> listener) {
+        globalListeners.add(listener);
+    }
+
+    public void execute(TriggerContext context) {
+        for (java.util.function.Consumer<TriggerContext> listener : globalListeners) {
+            listener.accept(context);
         }
     }
 

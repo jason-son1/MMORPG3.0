@@ -12,6 +12,9 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
     // Core data storage
     private final Map<String, Object> data = new ConcurrentHashMap<>();
 
+    // Component storage for ECS
+    private final Map<Class<?>, Object> components = new ConcurrentHashMap<>();
+
     // Helper objects (wrappers around the data map or transient)
     private final ResourcePool resources;
 
@@ -296,5 +299,15 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
         } else {
             pd.data.put(key, new ConcurrentHashMap<>());
         }
+    }
+
+    // ECS Component Methods
+    @SuppressWarnings("unchecked")
+    public <T> T getComponent(Class<T> type) {
+        return (T) components.get(type);
+    }
+
+    public <T> void addComponent(Class<T> type, T component) {
+        components.put(type, component);
     }
 }
