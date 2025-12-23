@@ -1,6 +1,7 @@
 package com.antigravity.rpg.feature.skill;
 
 import com.antigravity.rpg.api.service.Service;
+import com.antigravity.rpg.core.engine.StatRegistry;
 import com.antigravity.rpg.feature.player.PlayerProfileService;
 import com.antigravity.rpg.feature.skill.runtime.ScriptRunner;
 import com.google.inject.Inject;
@@ -21,14 +22,16 @@ public class SkillCastService implements Service {
     private final PlayerProfileService playerProfileService;
     private final SkillManager skillManager;
     private final ScriptRunner scriptRunner;
+    private final StatRegistry statRegistry;
 
     @Inject
     public SkillCastService(JavaPlugin plugin, PlayerProfileService playerProfileService,
-            SkillManager skillManager, ScriptRunner scriptRunner) {
+            SkillManager skillManager, ScriptRunner scriptRunner, StatRegistry statRegistry) {
         this.plugin = plugin;
         this.playerProfileService = playerProfileService;
         this.skillManager = skillManager;
         this.scriptRunner = scriptRunner;
+        this.statRegistry = statRegistry;
     }
 
     @Override
@@ -93,15 +96,16 @@ public class SkillCastService implements Service {
                 data.getSkillCooldowns().put(skillId, now + skill.getCooldownMs());
             }
 
-            // 5. 스킬 실행 (ScriptRunner 기반)
-            com.antigravity.rpg.feature.skill.context.SkillMetadata meta = com.antigravity.rpg.feature.skill.context.SkillMetadata
+            // 5. 스킬 실행 (SkillCastContext & ScriptRunner 기반)
+            com.antigravity.rpg.feature.skill.context.SkillCastContext ctx = com.antigravity.rpg.feature.skill.context.SkillCastContext
                     .builder()
-                    .casterData(data)
-                    .sourceEntity(player)
+                    .caster(player)
+                    .data(data)
+                    .statRegistry(statRegistry)
                     .build();
 
             // ScriptRunner를 통해 파이프라인 시작
-            scriptRunner.run(skill, meta);
+            scriptRunner.run(skill, ctx);
 
             // 시전 성공 알림
             player.sendActionBar(net.kyori.adventure.text.Component.text(skill.getName() + " 시전!",

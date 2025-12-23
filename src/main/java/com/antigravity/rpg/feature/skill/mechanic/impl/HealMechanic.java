@@ -1,7 +1,9 @@
 package com.antigravity.rpg.feature.skill.mechanic.impl;
 
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import com.antigravity.rpg.feature.skill.mechanic.Mechanic;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 
 import java.util.Map;
@@ -12,18 +14,18 @@ import java.util.Map;
 public class HealMechanic implements Mechanic {
 
     @Override
-    public void cast(SkillMetadata meta, Map<String, Object> config) {
-        if (!(meta.getTargetEntity() instanceof LivingEntity))
-            return;
-        LivingEntity target = (LivingEntity) meta.getTargetEntity();
-
+    public void cast(SkillCastContext ctx, Map<String, Object> config) {
         double amount = ((Number) config.getOrDefault("amount", 5.0)).doubleValue();
 
-        double currentHealth = target.getHealth();
-        double maxHealth = target.getAttribute(org.bukkit.attribute.Attribute.valueOf("GENERIC_MAX_HEALTH") != null
-                ? org.bukkit.attribute.Attribute.valueOf("GENERIC_MAX_HEALTH")
-                : org.bukkit.attribute.Attribute.valueOf("MAX_HEALTH")).getValue();
+        for (Entity target : ctx.getTargets()) {
+            if (!(target instanceof LivingEntity))
+                continue;
 
-        target.setHealth(Math.min(maxHealth, currentHealth + amount));
+            LivingEntity livingTarget = (LivingEntity) target;
+            double maxHealth = livingTarget.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+            double newHealth = Math.min(maxHealth, livingTarget.getHealth() + amount);
+
+            livingTarget.setHealth(newHealth);
+        }
     }
 }

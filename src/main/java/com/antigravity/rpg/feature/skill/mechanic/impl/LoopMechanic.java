@@ -1,6 +1,6 @@
 package com.antigravity.rpg.feature.skill.mechanic.impl;
 
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import com.antigravity.rpg.feature.skill.mechanic.Mechanic;
 import com.antigravity.rpg.feature.skill.mechanic.MechanicFactory;
 import com.antigravity.rpg.core.ecs.EntityRegistry;
@@ -29,7 +29,7 @@ public class LoopMechanic implements Mechanic {
     }
 
     @Override
-    public void cast(SkillMetadata meta, Map<String, Object> config) {
+    public void cast(SkillCastContext ctx, Map<String, Object> config) {
         int amount = ((Number) config.getOrDefault("amount", 1)).intValue();
         int interval = ((Number) config.getOrDefault("interval", 0)).intValue();
 
@@ -41,7 +41,7 @@ public class LoopMechanic implements Mechanic {
         if (interval <= 0) {
             // 즉시 반복
             for (int i = 0; i < amount; i++) {
-                executeInner(meta, mechanics);
+                executeInner(ctx, mechanics);
             }
         } else {
             // 지연 반복 (ECS 활용)
@@ -58,16 +58,17 @@ public class LoopMechanic implements Mechanic {
                     loopConfigs.add(new SkillDefinition.MechanicConfig((String) m.get("type"), m));
                 }
 
-                entityRegistry.addComponent(loopEntity, new ScriptComponent(loopConfigs, meta.copy()));
+                // ScriptComponent에 전달할 때 컨텍스트 사본 생성
+                entityRegistry.addComponent(loopEntity, new ScriptComponent(loopConfigs, ctx.copy()));
             }
         }
     }
 
-    private void executeInner(SkillMetadata meta, List<Map<String, Object>> mechanics) {
+    private void executeInner(SkillCastContext ctx, List<Map<String, Object>> mechanics) {
         for (Map<String, Object> mCfg : mechanics) {
             Mechanic mechanic = mechanicFactory.create((String) mCfg.get("type"));
             if (mechanic != null) {
-                mechanic.cast(meta, mCfg);
+                mechanic.cast(ctx, mCfg);
             }
         }
     }

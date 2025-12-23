@@ -1,6 +1,6 @@
 package com.antigravity.rpg.feature.skill.mechanic;
 
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 
 import java.util.Map;
 
@@ -12,8 +12,8 @@ public interface Mechanic {
     /**
      * 메카닉을 실행합니다.
      * 
-     * @param meta   스킬 실행 컨텍스트
+     * @param ctx    스킬 실행 컨텍스트
      * @param config 해당 메카닉의 YAML 설정값
      */
-    void cast(SkillMetadata meta, Map<String, Object> config);
+    void cast(SkillCastContext ctx, Map<String, Object> config);
 }

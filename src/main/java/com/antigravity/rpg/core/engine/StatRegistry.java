@@ -96,4 +96,8 @@ public class StatRegistry {
             return value;
         return Math.max(def.getMinValue(), Math.min(def.getMaxValue(), value));
     }
+
+    public java.util.Set<String> getStatIds() {
+        return stats.keySet();
+    }
 }

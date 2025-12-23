@@ -8,7 +8,6 @@ import com.antigravity.rpg.core.script.LuaScriptService;
 import com.google.inject.Inject;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
 
 import java.util.Map;
 
@@ -19,13 +18,11 @@ import java.util.Map;
 public class DamageAction implements Action {
 
     private final DamageProcessor damageProcessor;
-    private final LuaScriptService luaScriptService;
     private String amountFormula; // 값 또는 수식
 
     @Inject
-    public DamageAction(DamageProcessor damageProcessor, LuaScriptService luaScriptService) {
+    public DamageAction(DamageProcessor damageProcessor) {
         this.damageProcessor = damageProcessor;
-        this.luaScriptService = luaScriptService;
     }
 
     @Override

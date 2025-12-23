@@ -1,0 +1,33 @@
+name: "Fire Burst"
+cooldown: 5
+mana_cost: 20
+stamina_cost: 10
+
+# Unified Skill Flow
+flow:
+  - targeter:
+      type: "self"
+    effects:
+      - type: "sound"
+        sound: "ENTITY_BLAZE_SHOOT"
+        volume: 1.0
+        pitch: 1.2
+    condition_configs:
+      - type: "stat"
+        stat: "mana"
+        min: 20
+
+  - delay: 10 # 0.5s delay
+
+  - targeter:
+      type: "sphere"
+      radius: 5.0
+      include_caster: false
+    effects:
+      - preset: "explosion_particles"
+    mechanics:
+      - type: "damage"
+        amount: 50.0
+        element: "FIRE"
+      - type: "burn"
+        duration: 60 # 3s

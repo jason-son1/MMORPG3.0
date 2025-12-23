@@ -27,12 +27,19 @@ public class SkillDefinition {
     // [NEW] 스킬 발동 시 실행될 메카닉 및 설정 목록
     private final List<MechanicConfig> mechanics = new ArrayList<>();
 
+    // [NEW] 통합 스킬 실행 흐름 (Flow)
+    private final List<com.antigravity.rpg.feature.skill.flow.FlowStep> flow = new ArrayList<>();
+
     public void addTrigger(Trigger trigger) {
         this.triggers.add(trigger);
     }
 
     public void addMechanic(MechanicConfig mechanic) {
         this.mechanics.add(mechanic);
+    }
+
+    public void addFlowStep(com.antigravity.rpg.feature.skill.flow.FlowStep step) {
+        this.flow.add(step);
     }
 
     /**

@@ -1,0 +1,8 @@
+explosion_particles:
+  type: "particle"
+  particle: "EXPLOSION_LARGE"
+  amount: 5
+  speed: 0.1
+  offset-x: 0.5
+  offset-y: 0.5
+  offset-z: 0.5

@@ -10,8 +10,6 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.logging.Logger;
-
 public class RpgCoreModule extends AbstractModule {
 
     private final AntiGravityPlugin plugin;
@@ -55,6 +53,20 @@ public class RpgCoreModule extends AbstractModule {
         bind(com.antigravity.rpg.feature.social.PartyManager.class).in(Singleton.class);
         bind(com.antigravity.rpg.feature.loot.LootManager.class).in(Singleton.class);
         bind(com.antigravity.rpg.feature.item.CustomItemFactory.class).in(Singleton.class);
+
+        // [NEW] Effect System
+        bind(com.antigravity.rpg.feature.skill.effect.EffectRegistry.class).in(Singleton.class);
+        bind(com.antigravity.rpg.feature.skill.effect.EffectFactory.class).in(Singleton.class);
+        bind(com.antigravity.rpg.feature.skill.effect.EffectLibrary.class).in(Singleton.class);
+    }
+
+    @Provides
+    @Singleton
+    public com.antigravity.rpg.feature.skill.effect.EffectRegistry provideEffectRegistry() {
+        com.antigravity.rpg.feature.skill.effect.EffectRegistry registry = new com.antigravity.rpg.feature.skill.effect.EffectRegistry();
+        registry.register("particle", com.antigravity.rpg.feature.skill.effect.impl.XParticleEffect::new);
+        registry.register("model", com.antigravity.rpg.feature.skill.effect.impl.ModelEngineEffect::new);
+        return registry;
     }
 
     /*

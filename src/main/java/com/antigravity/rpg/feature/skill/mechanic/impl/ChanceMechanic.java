@@ -1,6 +1,6 @@
 package com.antigravity.rpg.feature.skill.mechanic.impl;
 
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import com.antigravity.rpg.feature.skill.mechanic.Mechanic;
 import com.antigravity.rpg.feature.skill.mechanic.MechanicFactory;
 import com.google.inject.Inject;
@@ -23,21 +23,19 @@ public class ChanceMechanic implements Mechanic {
     }
 
     @Override
-    public void cast(SkillMetadata meta, Map<String, Object> config) {
-        double chance = ((Number) config.getOrDefault("chance", 1.0)).doubleValue();
-        if (random.nextDouble() > chance)
-            return;
+    public void cast(SkillCastContext ctx, Map<String, Object> config) {
+        double chance = ((Number) config.getOrDefault("chance", 0.5)).doubleValue();
 
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> mechanics = (List<Map<String, Object>>) config.get("mechanics");
-        if (mechanics == null)
-            return;
-
-        for (Map<String, Object> mCfg : mechanics) {
-            String type = (String) mCfg.get("type");
-            Mechanic mechanic = mechanicFactory.create(type);
-            if (mechanic != null) {
-                mechanic.cast(meta, mCfg);
+        if (random.nextDouble() <= chance) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> mechanics = (List<Map<String, Object>>) config.get("mechanics");
+            if (mechanics != null) {
+                for (Map<String, Object> mCfg : mechanics) {
+                    Mechanic mechanic = mechanicFactory.create((String) mCfg.get("type"));
+                    if (mechanic != null) {
+                        mechanic.cast(ctx, mCfg);
+                    }
+                }
             }
         }
     }

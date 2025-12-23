@@ -1,7 +1,7 @@
 package com.antigravity.rpg.feature.skill.mechanic.impl;
 
 import com.antigravity.rpg.core.ecs.EntityRegistry;
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import com.antigravity.rpg.feature.skill.ecs.ProjectileComponent;
 import com.antigravity.rpg.feature.skill.mechanic.Mechanic;
 import com.google.inject.Inject;
@@ -25,8 +25,8 @@ public class ProjectileMechanic implements Mechanic {
     }
 
     @Override
-    public void cast(SkillMetadata meta, Map<String, Object> config) {
-        Location startLoc = meta.getSourceEntity().getLocation().add(0, 1.5, 0);
+    public void cast(SkillCastContext ctx, Map<String, Object> config) {
+        Location startLoc = ctx.getCasterEntity().getLocation().add(0, 1.5, 0);
         Vector direction = startLoc.getDirection();
 
         // [Offset] 시작 위치 보정
@@ -58,7 +58,7 @@ public class ProjectileMechanic implements Mechanic {
         // ECS 엔티티 생성 및 컴포넌트 추가
         UUID projId = entityRegistry.createEntity();
         ProjectileComponent component = new ProjectileComponent(
-                startLoc, velocity, onTick, onHit, meta.copy(), hitbox, ignoreCaster);
+                startLoc, velocity, onTick, onHit, ctx.copy(), hitbox, ignoreCaster);
         entityRegistry.addComponent(projId, component);
     }
 }

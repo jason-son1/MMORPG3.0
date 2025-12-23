@@ -1,7 +1,8 @@
 package com.antigravity.rpg.feature.skill.condition.impl;
 
 import com.antigravity.rpg.feature.skill.condition.Condition;
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 
 import java.util.Map;
@@ -11,30 +12,38 @@ import java.util.Map;
  */
 public class HealthCondition implements Condition {
 
-    @Override
-    public boolean evaluate(SkillMetadata meta, Map<String, Object> config) {
-        String targetType = (String) config.getOrDefault("target", "CASTER");
-        String operation = (String) config.getOrDefault("operation", "GT"); // GT, LT, GTE, LTE, EQ
-        double value = ((Number) config.getOrDefault("value", 0.0)).doubleValue();
-        boolean usePercentage = (boolean) config.getOrDefault("percentage", false);
+    private String targetType;
+    private String operation;
+    private double value;
+    private boolean usePercentage;
 
-        LivingEntity target = null;
+    @Override
+    public void setup(Map<String, Object> config) {
+        this.targetType = (String) config.getOrDefault("target", "CASTER"); // Default to CASTER if not specified? Or
+                                                                            // should it be explicitly checked? Original
+                                                                            // code defaulted to CASTER in evaluate.
+        this.operation = (String) config.getOrDefault("operation", "GT");
+        this.value = ((Number) config.getOrDefault("value", 0.0)).doubleValue();
+        this.usePercentage = (boolean) config.getOrDefault("percentage", false);
+    }
+
+    @Override
+    public boolean evaluate(SkillCastContext ctx, Entity target) {
+        LivingEntity entity = null;
         if ("CASTER".equalsIgnoreCase(targetType)) {
-            if (meta.getSourceEntity() instanceof LivingEntity)
-                target = (LivingEntity) meta.getSourceEntity();
+            if (ctx.getCasterEntity() instanceof LivingEntity)
+                entity = (LivingEntity) ctx.getCasterEntity();
         } else {
-            if (meta.getTargetEntity() instanceof LivingEntity)
-                target = (LivingEntity) meta.getTargetEntity();
+            if (target instanceof LivingEntity)
+                entity = (LivingEntity) target;
         }
 
-        if (target == null)
+        if (entity == null)
             return false;
 
-        double current = target.getHealth();
+        double current = entity.getHealth();
         if (usePercentage) {
-            double max = target.getAttribute(org.bukkit.attribute.Attribute.valueOf("GENERIC_MAX_HEALTH") != null
-                    ? org.bukkit.attribute.Attribute.valueOf("GENERIC_MAX_HEALTH")
-                    : org.bukkit.attribute.Attribute.valueOf("MAX_HEALTH")).getValue();
+            double max = entity.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue();
             current = (current / max) * 100.0;
         }
 

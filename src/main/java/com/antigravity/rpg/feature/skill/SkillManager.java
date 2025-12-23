@@ -123,6 +123,20 @@ public class SkillManager implements Service {
                     }
                 }
 
+                // [NEW] 통합 흐름(Flow) 파싱
+                if (s.contains("flow") && s.isList("flow")) {
+                    List<?> flowList = s.getList("flow");
+                    for (Object obj : flowList) {
+                        if (obj instanceof Map) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> stepMap = (Map<String, Object>) obj;
+                            skill.addFlowStep(parseFlowStep(stepMap));
+                        } else if (obj instanceof ConfigurationSection) {
+                            skill.addFlowStep(parseFlowStep(sectionToMap((ConfigurationSection) obj)));
+                        }
+                    }
+                }
+
                 skills.put(id, skill);
                 count++;
             }
@@ -135,6 +149,57 @@ public class SkillManager implements Service {
      */
     public SkillDefinition getSkill(String id) {
         return skills.get(id);
+    }
+
+    private com.antigravity.rpg.feature.skill.flow.FlowStep parseFlowStep(Map<String, Object> map) {
+        com.antigravity.rpg.feature.skill.flow.FlowStep.FlowStepBuilder builder = com.antigravity.rpg.feature.skill.flow.FlowStep
+                .builder();
+
+        // 1. Targeter
+        if (map.containsKey("targeter")) {
+            Object tObj = map.get("targeter");
+            if (tObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> tMap = (Map<String, Object>) tObj;
+                builder.targeterConfig(tMap);
+            } else if (tObj instanceof String) {
+                builder.targeterConfig(Map.of("type", tObj));
+            }
+        }
+
+        // 2. Effects
+        if (map.containsKey("effects")) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> effects = (List<Map<String, Object>>) map.get("effects");
+            builder.effectConfigs(effects);
+        }
+
+        // 3. Mechanics
+        if (map.containsKey("mechanics")) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> mechanics = (List<Map<String, Object>>) map.get("mechanics");
+            java.util.List<SkillDefinition.MechanicConfig> mConfigs = new java.util.ArrayList<>();
+            for (Map<String, Object> m : mechanics) {
+                String type = (String) m.get("type");
+                if (type != null) {
+                    mConfigs.add(new SkillDefinition.MechanicConfig(type, m));
+                }
+            }
+            builder.mechanicConfigs(mConfigs);
+        }
+
+        // 4. Conditions
+        if (map.containsKey("conditions")) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> conditions = (List<Map<String, Object>>) map.get("conditions");
+            builder.conditionConfigs(conditions);
+        }
+
+        // 5. Misc
+        builder.delay(((Number) map.getOrDefault("delay", 0)).intValue());
+        builder.async((boolean) map.getOrDefault("async", false));
+
+        return builder.build();
     }
 
     private Map<String, Object> sectionToMap(ConfigurationSection section) {

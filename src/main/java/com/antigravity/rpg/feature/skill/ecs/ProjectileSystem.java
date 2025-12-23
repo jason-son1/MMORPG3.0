@@ -2,7 +2,7 @@ package com.antigravity.rpg.feature.skill.ecs;
 
 import com.antigravity.rpg.core.ecs.EntityRegistry;
 import com.antigravity.rpg.core.ecs.System;
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import com.antigravity.rpg.feature.skill.mechanic.Mechanic;
 import com.antigravity.rpg.feature.skill.mechanic.MechanicFactory;
 import com.google.inject.Inject;
@@ -12,6 +12,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -52,7 +53,7 @@ public class ProjectileSystem implements System {
                 // 3. On-Tick 메카닉 실행
                 if (proj.getOnTickMechanics() != null) {
                     for (Map<String, Object> cfg : proj.getOnTickMechanics()) {
-                        executeMechanic(proj.getMetadata(), cfg, newLoc);
+                        executeMechanic(proj.getContext(), cfg, newLoc);
                     }
                 }
 
@@ -66,7 +67,7 @@ public class ProjectileSystem implements System {
                         proj.getHitboxSize(), proj.getHitboxSize());
                 for (Entity hit : nearby) {
                     if (hit instanceof LivingEntity
-                            && (!proj.isIgnoreCaster() || !hit.equals(proj.getMetadata().getSourceEntity()))) {
+                            && (!proj.isIgnoreCaster() || !hit.equals(proj.getContext().getCasterEntity()))) {
                         triggerHit(entityId, proj, hit, newLoc);
                         return;
                     }
@@ -77,26 +78,30 @@ public class ProjectileSystem implements System {
 
     private void triggerHit(UUID entityId, ProjectileComponent proj, Entity hitEntity, Location hitLoc) {
         if (proj.getOnHitMechanics() != null) {
-            SkillMetadata hitMeta = proj.getMetadata().copy();
-            hitMeta.setTargetEntity(hitEntity);
-            hitMeta.setTargetLocation(hitLoc);
+            SkillCastContext hitCtx = proj.getContext().copy();
+            if (hitEntity != null) {
+                hitCtx.setTargets(Collections.singletonList(hitEntity));
+            } else {
+                hitCtx.getTargets().clear();
+            }
+            hitCtx.setOriginLocation(hitLoc);
 
             for (Map<String, Object> cfg : proj.getOnHitMechanics()) {
                 Mechanic mechanic = mechanicFactory.create((String) cfg.get("type"));
                 if (mechanic != null) {
-                    mechanic.cast(hitMeta, cfg);
+                    mechanic.cast(hitCtx, cfg);
                 }
             }
         }
         entityRegistry.removeEntity(entityId);
     }
 
-    private void executeMechanic(SkillMetadata meta, Map<String, Object> cfg, Location loc) {
+    private void executeMechanic(SkillCastContext ctx, Map<String, Object> cfg, Location loc) {
         Mechanic mechanic = mechanicFactory.create((String) cfg.get("type"));
         if (mechanic != null) {
-            SkillMetadata tickMeta = meta.copy();
-            tickMeta.setTargetLocation(loc);
-            mechanic.cast(tickMeta, cfg);
+            SkillCastContext tickCtx = ctx.copy();
+            tickCtx.setOriginLocation(loc);
+            mechanic.cast(tickCtx, cfg);
         }
     }
 

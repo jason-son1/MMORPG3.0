@@ -1,8 +1,9 @@
 package com.antigravity.rpg.feature.skill.condition.impl;
 
 import com.antigravity.rpg.feature.skill.condition.Condition;
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import org.bukkit.block.Biome;
+import org.bukkit.entity.Entity;
 
 import java.util.Map;
 
@@ -11,11 +12,19 @@ import java.util.Map;
  */
 public class BiomeCondition implements Condition {
 
+    private String biomeName;
+
     @Override
-    public boolean evaluate(SkillMetadata meta, Map<String, Object> config) {
-        String biomeName = (String) config.get("biome");
+    public void setup(Map<String, Object> config) {
+        this.biomeName = (String) config.get("biome");
+    }
+
+    @Override
+    public boolean evaluate(SkillCastContext ctx, Entity target) {
         if (biomeName == null)
             return true;
+
+        Entity entityToCheck = target != null ? target : (Entity) ctx.getCasterEntity();
 
         Biome bio;
         try {
@@ -24,6 +33,6 @@ public class BiomeCondition implements Condition {
             return false;
         }
 
-        return meta.getSourceEntity().getLocation().getBlock().getBiome() == bio;
+        return entityToCheck.getLocation().getBlock().getBiome() == bio;
     }
 }

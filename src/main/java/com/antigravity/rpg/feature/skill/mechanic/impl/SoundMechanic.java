@@ -1,7 +1,8 @@
 package com.antigravity.rpg.feature.skill.mechanic.impl;
 
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import com.antigravity.rpg.feature.skill.mechanic.Mechanic;
+import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
 
@@ -13,17 +14,25 @@ import java.util.Map;
 public class SoundMechanic implements Mechanic {
 
     @Override
-    public void cast(SkillMetadata meta, Map<String, Object> config) {
+    public void cast(SkillCastContext ctx, Map<String, Object> config) {
         String soundName = (String) config.getOrDefault("sound", "ENTITY_EXPERIENCE_ORB_PICKUP");
         float volume = ((Number) config.getOrDefault("volume", 1.0f)).floatValue();
         float pitch = ((Number) config.getOrDefault("pitch", 1.0f)).floatValue();
 
-        Entity target = meta.getTargetEntity() != null ? meta.getTargetEntity() : meta.getSourceEntity();
-        if (target != null) {
-            try {
-                target.getWorld().playSound(target.getLocation(), Sound.valueOf(soundName.toUpperCase()), volume,
-                        pitch);
-            } catch (Exception ignored) {
+        Sound sound;
+        try {
+            sound = Sound.valueOf(soundName.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+
+        // 타겟이 있으면 모든 타겟 위치에서 재생, 없으면 시전자 위치에서 재생
+        if (ctx.getTargets().isEmpty()) {
+            Location loc = ctx.getCasterEntity().getLocation();
+            loc.getWorld().playSound(loc, sound, volume, pitch);
+        } else {
+            for (Entity target : ctx.getTargets()) {
+                target.getWorld().playSound(target.getLocation(), sound, volume, pitch);
             }
         }
     }

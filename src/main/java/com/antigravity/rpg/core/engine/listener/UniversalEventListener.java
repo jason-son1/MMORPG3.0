@@ -2,8 +2,6 @@ package com.antigravity.rpg.core.engine.listener;
 
 import com.antigravity.rpg.core.engine.trigger.TriggerContext;
 import com.antigravity.rpg.core.engine.trigger.TriggerService;
-import com.antigravity.rpg.feature.item.ItemService;
-import com.antigravity.rpg.feature.player.PlayerProfileService;
 import com.google.inject.Inject;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -22,15 +20,10 @@ import org.bukkit.inventory.ItemStack;
 public class UniversalEventListener implements Listener {
 
     private final TriggerService triggerService;
-    private final PlayerProfileService playerProfileService;
-    private final ItemService itemService;
 
     @Inject
-    public UniversalEventListener(TriggerService triggerService, PlayerProfileService playerProfileService,
-            ItemService itemService) {
+    public UniversalEventListener(TriggerService triggerService) {
         this.triggerService = triggerService;
-        this.playerProfileService = playerProfileService;
-        this.itemService = itemService;
     }
 
     @EventHandler

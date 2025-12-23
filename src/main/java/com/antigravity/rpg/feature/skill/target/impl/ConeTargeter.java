@@ -1,27 +1,31 @@
 package com.antigravity.rpg.feature.skill.target.impl;
 
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import com.antigravity.rpg.feature.skill.target.Targeter;
-import lombok.RequiredArgsConstructor;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
  * 시전자의 전방 부채꼴(Cone) 영역 내 엔티티를 타겟으로 지정하는 타겟터입니다.
  */
-@RequiredArgsConstructor
 public class ConeTargeter implements Targeter {
 
     private final double radius;
     private final double angle; // 시야각 (degrees)
 
+    public ConeTargeter(Map<String, Object> config) {
+        this.radius = ((Number) config.getOrDefault("radius", 5.0)).doubleValue();
+        this.angle = ((Number) config.getOrDefault("angle", 90.0)).doubleValue();
+    }
+
     @Override
-    public List<Entity> getTargetEntities(SkillMetadata meta) {
-        Entity source = meta.getSourceEntity();
+    public List<Entity> getTargetEntities(SkillCastContext ctx) {
+        Entity source = ctx.getCasterEntity();
         Location origin = source.getLocation();
         Vector direction = origin.getDirection().normalize();
 
@@ -37,8 +41,8 @@ public class ConeTargeter implements Targeter {
     }
 
     @Override
-    public List<Location> getTargetLocations(SkillMetadata meta) {
-        return getTargetEntities(meta).stream()
+    public List<Location> getTargetLocations(SkillCastContext ctx) {
+        return getTargetEntities(ctx).stream()
                 .map(Entity::getLocation)
                 .collect(Collectors.toList());
     }

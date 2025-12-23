@@ -2,7 +2,7 @@ package com.antigravity.rpg.feature.skill.runtime;
 
 import com.antigravity.rpg.core.ecs.EntityRegistry;
 import com.antigravity.rpg.feature.skill.SkillDefinition;
-import com.antigravity.rpg.feature.skill.context.SkillMetadata;
+import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import com.antigravity.rpg.feature.skill.ecs.ScriptComponent;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -25,11 +25,11 @@ public class ScriptRunner {
     /**
      * 스킬을 실행합니다. (새로운 ECS 엔티티 생성)
      */
-    public void run(SkillDefinition skill, SkillMetadata metadata) {
+    public void run(SkillDefinition skill, SkillCastContext context) {
         UUID scriptEntity = entityRegistry.createEntity();
 
         // ScriptComponent 추가하여 ScriptExecutionSystem이 처리하도록 함
-        ScriptComponent component = new ScriptComponent(skill.getMechanics(), metadata);
+        ScriptComponent component = new ScriptComponent(skill.getMechanics(), skill.getFlow(), context);
         entityRegistry.addComponent(scriptEntity, component);
     }
 }
