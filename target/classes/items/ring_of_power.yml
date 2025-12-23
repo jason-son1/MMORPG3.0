@@ -1,0 +1,14 @@
+# 힘의 반지 (Ring of Power) 아이템 설정
+id: "ring_of_power"
+name: "&e절대 반지"
+material: "GOLD_NUGGET"
+# 장착 슬롯: 반지 (RING - 커스텀 슬롯 예시)
+slot: RING
+
+stats:
+  STR: 10.0
+  INT: 10.0
+  DEX: 10.0
+  MAX_HEALTH: 20.0
+
+model-id: 5050

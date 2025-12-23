@@ -1,0 +1,14 @@
+# 일반 검 (Common Sword) 아이템 설정
+id: "common_sword"
+name: "&f평범한 철검"
+material: "IRON_SWORD"
+# 장착 슬롯: 주 손 (MAIN_HAND)
+slot: MAIN_HAND
+
+# 아이템 스탯 (combat.yml의 키값 사용)
+stats:
+  PHYSICAL_DAMAGE: 5.0
+  CRITICAL_CHANCE: 1.0
+
+# 시각 요소 (ModelEngine 연동 시 사용)
+model-id: 0

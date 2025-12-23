@@ -1,21 +1,20 @@
-name: "Meteor"
-cooldown: 15.0
-cost:
-  MANA: 100
+# 메테오 (Meteor) 스킬 설정
+id: "meteor"
+name: "메테오"
+description: "하늘에서 거대한 운석을 떨어뜨립니다.Lua 스크립트를 통해 데미지를 계산합니다."
 
-triggers:
-  ON_CAST:
-    - type: DELAY
-      ticks: 20
-    - type: SOUND
-      sound: ENTITY_GENERIC_EXPLODE
-    - type: DAMAGE
-      radius: 5.0
-      amount: "INT * 5.0 + 100"
-      element: FIRE
-    - type: APPLY_TAG
-      tag: "#BURN"
-      duration: 5.0
-    - type: PARTICLE
-      particle: EXPLOSION_HUGE
-      count: 1
+cost:
+  type: MANA
+  amount: 100
+
+cooldown: 30.0
+
+mechanics:
+  # Lua 스크립트를 호출하여 복잡한 로직 처리
+  - type: SCRIPT
+    script-path: "scripts/skill_scripts/calculate_meteor_damage.lua"
+    function: "onCast"
+  - type: SOUND
+    sound: "ENTITY_LIGHTNING_BOLT_THUNDER"
+    volume: 1.5
+    pitch: 0.5

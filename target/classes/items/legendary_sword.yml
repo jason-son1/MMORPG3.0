@@ -1,30 +1,14 @@
-name: "&6Excalibur"
-material: DIAMOND_SWORD
-lore:
-  - "&7전설의 검입니다."
-  - "&7공격 시 50% 확률로 추가 화염 데미지를 입힙니다."
+# 전설의 검 (Legendary Sword) 아이템 설정
+id: "legendary_sword"
+name: "&6용사의 엑스칼리버"
+material: "NETHERITE_SWORD"
+slot: MAIN_HAND
 
 stats:
-  DAMAGE: 150
-  ATTACK_SPEED: 1.2
-  CRITICAL_CHANCE: 20
+  PHYSICAL_DAMAGE: 25.0
+  MAGICAL_DAMAGE: 10.0
+  CRITICAL_CHANCE: 15.0
+  CRITICAL_DAMAGE: 50.0
+  COOLDOWN_REDUCTION: 10.0
 
-tags:
-  - "#LEGENDARY"
-  - "#FIRE_WEAPON"
-
-triggers:
-  ON_HIT:
-    - type: SOUND
-      sound: ENTITY_BLAZE_SHOOT
-      volume: 1.0
-      pitch: 1.5
-    - type: CHANCE
-      chance: 50
-      actions:
-        - type: DAMAGE
-          amount: "STR * 0.5"
-          element: FIRE
-        - type: PARTICLE
-          particle: FLAME
-          count: 10
+model-id: 9999

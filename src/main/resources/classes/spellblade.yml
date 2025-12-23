@@ -1,0 +1,26 @@
+# 마검사 직업 정의
+id: SPELLBLADE
+name: "마검사"
+# 자원 유형: 마력 (STAMINA)
+resource-type: STAMINA
+
+# 1레벨 기본 능력치
+base-stats:
+  MAX_HEALTH: 16
+  PHYSICAL_DAMAGE: 4
+  MAGICAL_DAMAGE: 4
+
+# 레벨업 시 스탯 증가량
+level-scaling:
+  MAX_HEALTH: 1.6
+  PHYSICAL_DAMAGE: 0.4
+  MAGICAL_DAMAGE: 0.4
+
+# 스킬 트리 정의
+skill-tree:
+  - level: 1
+    skill: "heavy_strike"
+  - level: 5
+    skill: "fireball"
+  - level: 10
+    skill: "spellblade_resonance"

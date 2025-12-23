@@ -1,10 +1,23 @@
-heavy_strike:
-  displayName: "Heavy Strike"
-  type: "MELEE"
-  cooldown: 3
-  cost:
-    STAMINA: 15
-  effects:
-    - type: "DAMAGE"
-      value: 30
-      multiplier: 1.5
+# 강타 (Heavy Strike) 스킬 설정
+id: "heavy_strike"
+name: "강타"
+description: "강력한 물리 공격으로 적에게 피해를 입힙니다."
+
+cost:
+  type: RAGE
+  amount: 20
+
+cooldown: 5.0 # (초 단위)
+
+mechanics:
+  # 스킬 발동 사운드
+  - type: SOUND
+    sound: "ENTITY_PLAYER_ATTACK_STRONG"
+    volume: 1.0
+    pitch: 1.0
+  # 전방 범위 피해
+  - type: DAMAGE
+    base-damage: 10.0
+    scaling-stat: "PHYSICAL_DAMAGE"
+    scaling-factor: 1.5
+    range: 3.5

@@ -1,0 +1,30 @@
+# 몬스터 드롭 (Loot Table) 설정
+# 각 엔티티 타입별로 드롭할 아이템과 확률을 정의합니다.
+
+zombie_drop:
+  # 드롭 시도 횟수
+  rolls: 1
+  items:
+    # 바닐라 아이템 드롭
+    - material: "ROTTEN_FLESH"
+      chance: 80.0
+      min-amount: 1
+      max-amount: 3
+    # 커스텀 아이템 드롭
+    - item-id: "common_sword"
+      chance: 5.0
+      amount: 1
+    - item-id: "rare_sword"
+      chance: 0.5
+      amount: 1
+
+skeleton_drop:
+  rolls: 1
+  items:
+    - material: "ARROW"
+      chance: 70.0
+      min-amount: 1
+      max-amount: 5
+    - item-id: "ring_of_power"
+      chance: 0.1
+      amount: 1

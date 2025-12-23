@@ -1,8 +1,29 @@
-database:
-  host: localhost
-  port: 3306
-  name: minecraft_rpg
-  username: root
-  # 수정 전: password: sks74537453!
-  # 수정 후 (따옴표 추가):
-  password: "sks74537453!"  # 새로 만든 비밀번호
+# MMORPG 3.0 핵심 설정 파일
+# 모든 설정 및 시스템 활성화 여부를 관리합니다.
+
+storage:
+  # 데이터 저장 방식 설정 (YAML 또는 MYSQL)
+  type: YAML
+  # 자동 저장 간격 (초 단위)
+  save-interval: 300
+  # MySQL 접속 정보 (type이 MYSQL일 경우 사용)
+  mysql:
+    host: localhost
+    port: 3306
+    database: mmorpg
+    username: root
+    password: ""
+    # HikariCP 커넥션 풀 설정
+    pool-settings:
+      maximum-pool-size: 10
+
+hooks:
+  # 타 플러그인 연동 여부
+  mythic-mobs: true
+  model-engine: true
+  items-adder: false
+
+debug:
+  # 디버그 로그 출력 여부
+  ecs: false
+  events: false

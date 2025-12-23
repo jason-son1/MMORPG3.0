@@ -1,12 +1,26 @@
-mage:
-  displayName: "Mage"
-  base_stats:
-    INTELLIGENCE: 15
-    WISDOM: 10
-    MAX_MANA: 100
-  scale_stats:
-    INTELLIGENCE: 2
-    WISDOM: 1
-  skills:
-    - "fireball"
-    - "ice_bolt"
+# 마법사 직업 정의
+id: MAGE
+name: "마법사"
+# 자원 유형: 마나 (MANA)
+resource-type: MANA
+
+# 1레벨 기본 능력치
+base-stats:
+  MAX_HEALTH: 12
+  MAGICAL_DAMAGE: 8
+  INT: 15
+
+# 레벨업 시 스탯 증가량
+level-scaling:
+  MAX_HEALTH: 1.2
+  MAGICAL_DAMAGE: 1.0
+  INT: 1.5
+
+# 스킬 트리 정의
+skill-tree:
+  - level: 1
+    skill: "fireball"
+  - level: 5
+    skill: "holy_light"
+  - level: 15
+    skill: "meteor"

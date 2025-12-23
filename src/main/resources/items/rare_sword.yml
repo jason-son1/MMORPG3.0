@@ -1,0 +1,13 @@
+# 희귀한 검 (Rare Sword) 아이템 설정
+id: "rare_sword"
+name: "&b영혼의 인도자"
+material: "DIAMOND_SWORD"
+slot: MAIN_HAND
+
+stats:
+  PHYSICAL_DAMAGE: 12.0
+  MAGICAL_DAMAGE: 3.0
+  CRITICAL_CHANCE: 5.0
+  COOLDOWN_REDUCTION: 2.5
+
+model-id: 1001
