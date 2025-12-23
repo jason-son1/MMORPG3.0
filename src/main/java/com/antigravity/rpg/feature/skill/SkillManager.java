@@ -93,31 +93,32 @@ public class SkillManager implements Service {
                     skill.addTrigger(trigger);
                 }
 
-                // [NEW] 메카닉(Mechanic) 파싱
-                ConfigurationSection mechanicsSection = s.getConfigurationSection("mechanics");
-                if (mechanicsSection != null) {
-                    for (String key : mechanicsSection.getKeys(false)) {
-                        ConfigurationSection m = mechanicsSection.getConfigurationSection(key);
-                        if (m != null) {
-                            String type = m.getString("type");
-                            if (type != null) {
-                                Map<String, Object> values = m.getValues(false);
-                                skill.addMechanic(new SkillDefinition.MechanicConfig(type, values));
+                // [NEW] 메카닉(Mechanic) 파싱 (재귀적 맵 변환 지원)
+                if (s.contains("mechanics")) {
+                    List<Map<String, Object>> mechanicsList = new java.util.ArrayList<>();
+                    if (s.isConfigurationSection("mechanics")) {
+                        ConfigurationSection ms = s.getConfigurationSection("mechanics");
+                        for (String key : ms.getKeys(false)) {
+                            if (ms.isConfigurationSection(key)) {
+                                mechanicsList.add(sectionToMap(ms.getConfigurationSection(key)));
+                            }
+                        }
+                    } else if (s.isList("mechanics")) {
+                        for (Object obj : s.getList("mechanics")) {
+                            if (obj instanceof Map) {
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> map = (Map<String, Object>) obj;
+                                mechanicsList.add(map);
+                            } else if (obj instanceof ConfigurationSection) {
+                                mechanicsList.add(sectionToMap((ConfigurationSection) obj));
                             }
                         }
                     }
-                } else if (s.getList("mechanics") instanceof List) {
-                    // 리스트 형태의 메카닉 파싱 지원
-                    List<?> list = s.getList("mechanics");
-                    if (list != null) {
-                        for (Object obj : list) {
-                            if (obj instanceof Map) {
-                                Map<String, Object> map = (Map<String, Object>) obj;
-                                String type = (String) map.get("type");
-                                if (type != null) {
-                                    skill.addMechanic(new SkillDefinition.MechanicConfig(type, map));
-                                }
-                            }
+
+                    for (Map<String, Object> m : mechanicsList) {
+                        String type = (String) m.get("type");
+                        if (type != null) {
+                            skill.addMechanic(new SkillDefinition.MechanicConfig(type, m));
                         }
                     }
                 }
@@ -134,5 +135,28 @@ public class SkillManager implements Service {
      */
     public SkillDefinition getSkill(String id) {
         return skills.get(id);
+    }
+
+    private Map<String, Object> sectionToMap(ConfigurationSection section) {
+        Map<String, Object> result = new java.util.HashMap<>();
+        for (String key : section.getKeys(false)) {
+            Object val = section.get(key);
+            if (val instanceof ConfigurationSection) {
+                result.put(key, sectionToMap((ConfigurationSection) val));
+            } else if (val instanceof List) {
+                List<Object> newList = new java.util.ArrayList<>();
+                for (Object item : (List<?>) val) {
+                    if (item instanceof ConfigurationSection) {
+                        newList.add(sectionToMap((ConfigurationSection) item));
+                    } else {
+                        newList.add(item);
+                    }
+                }
+                result.put(key, newList);
+            } else {
+                result.put(key, val);
+            }
+        }
+        return result;
     }
 }

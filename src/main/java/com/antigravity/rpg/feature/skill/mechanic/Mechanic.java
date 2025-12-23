@@ -1,10 +1,6 @@
 package com.antigravity.rpg.feature.skill.mechanic;
 
-import com.antigravity.rpg.core.engine.trigger.TriggerContext;
-import com.antigravity.rpg.feature.player.PlayerData;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import org.bukkit.entity.Entity;
+import com.antigravity.rpg.feature.skill.context.SkillMetadata;
 
 import java.util.Map;
 
@@ -16,19 +12,8 @@ public interface Mechanic {
     /**
      * 메카닉을 실행합니다.
      * 
-     * @param meta 스킬 시전 시의 메타데이터 (시전자, 대상, 설정값 등)
+     * @param meta   스킬 실행 컨텍스트
+     * @param config 해당 메카닉의 YAML 설정값
      */
-    void cast(SkillMetadata meta);
-
-    /**
-     * 스킬 실행에 필요한 정보를 담는 데이터 클래스입니다.
-     */
-    @Getter
-    @RequiredArgsConstructor
-    class SkillMetadata {
-        private final PlayerData caster;
-        private final Entity target;
-        private final TriggerContext context;
-        private final Map<String, Object> config;
-    }
+    void cast(SkillMetadata meta, Map<String, Object> config);
 }

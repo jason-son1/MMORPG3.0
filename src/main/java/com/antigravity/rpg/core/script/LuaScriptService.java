@@ -147,6 +147,29 @@ public class LuaScriptService implements Service {
         }
     }
 
+    /**
+     * Lua 코드를 평가하여 결과를 반환합니다.
+     */
+    public Object evaluate(String script, java.util.Map<String, Object> context) {
+        try {
+            LuaValue chunk = globals.load(script);
+            for (java.util.Map.Entry<String, Object> entry : context.entrySet()) {
+                globals.set(entry.getKey(), CoerceJavaToLua.coerce(entry.getValue()));
+            }
+            LuaValue result = chunk.call();
+            if (result.isboolean())
+                return result.toboolean();
+            if (result.isnumber())
+                return result.todouble();
+            if (result.isstring())
+                return result.tojstring();
+            return result;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     @Override
     public void onDisable() {
         // Cleanup if needed

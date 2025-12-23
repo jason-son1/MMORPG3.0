@@ -26,7 +26,10 @@ public class MechanicFactory {
         registry.put("HEAL", HealMechanic.class);
         registry.put("SOUND", SoundMechanic.class);
         registry.put("PROJECTILE", ProjectileMechanic.class);
-        // 추후 추가: TELEPORT, PARTICLE 등
+        registry.put("HELIX", HelixMechanic.class);
+        registry.put("SLASH", SlashMechanic.class);
+        registry.put("CHANCE", ChanceMechanic.class);
+        registry.put("LOOP", LoopMechanic.class);
     }
 
     public Mechanic create(String type) {

@@ -1,10 +1,8 @@
 package com.antigravity.rpg.feature.skill;
 
 import com.antigravity.rpg.api.service.Service;
-import com.antigravity.rpg.core.script.LuaScriptService;
-import com.antigravity.rpg.core.engine.trigger.TriggerService;
-import com.antigravity.rpg.feature.player.PlayerData;
 import com.antigravity.rpg.feature.player.PlayerProfileService;
+import com.antigravity.rpg.feature.skill.runtime.ScriptRunner;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import net.kyori.adventure.text.Component;
@@ -22,21 +20,15 @@ public class SkillCastService implements Service {
     private final JavaPlugin plugin;
     private final PlayerProfileService playerProfileService;
     private final SkillManager skillManager;
-    private final TriggerService triggerService;
-    private final com.antigravity.rpg.feature.skill.mechanic.MechanicFactory mechanicFactory;
-    private final LuaScriptService luaScriptService;
+    private final ScriptRunner scriptRunner;
 
     @Inject
     public SkillCastService(JavaPlugin plugin, PlayerProfileService playerProfileService,
-            SkillManager skillManager, TriggerService triggerService,
-            com.antigravity.rpg.feature.skill.mechanic.MechanicFactory mechanicFactory,
-            LuaScriptService luaScriptService) {
+            SkillManager skillManager, ScriptRunner scriptRunner) {
         this.plugin = plugin;
         this.playerProfileService = playerProfileService;
         this.skillManager = skillManager;
-        this.triggerService = triggerService;
-        this.mechanicFactory = mechanicFactory;
-        this.luaScriptService = luaScriptService;
+        this.scriptRunner = scriptRunner;
     }
 
     @Override
@@ -101,30 +93,19 @@ public class SkillCastService implements Service {
                 data.getSkillCooldowns().put(skillId, now + skill.getCooldownMs());
             }
 
-            // 5. 트리거 및 메카닉 실행
-            com.antigravity.rpg.core.engine.trigger.TriggerContext ctx = new com.antigravity.rpg.core.engine.trigger.TriggerContext(
-                    player);
+            // 5. 스킬 실행 (ScriptRunner 기반)
+            com.antigravity.rpg.feature.skill.context.SkillMetadata meta = com.antigravity.rpg.feature.skill.context.SkillMetadata
+                    .builder()
+                    .casterData(data)
+                    .sourceEntity(player)
+                    .build();
 
-            // 레거시 트리거
-            for (com.antigravity.rpg.core.engine.trigger.Trigger trigger : skill.getTriggers()) {
-                triggerService.execute(trigger, ctx);
-            }
-
-            // 신규 메카닉
-            for (SkillDefinition.MechanicConfig config : skill.getMechanics()) {
-                com.antigravity.rpg.feature.skill.mechanic.Mechanic mechanic = mechanicFactory.create(config.getType());
-                if (mechanic != null) {
-                    com.antigravity.rpg.feature.skill.mechanic.Mechanic.SkillMetadata meta = new com.antigravity.rpg.feature.skill.mechanic.Mechanic.SkillMetadata(
-                            data, player, ctx, config.getConfig());
-                    mechanic.cast(meta);
-                }
-            }
-
-            // Lua onCast 훅 호출
-            luaScriptService.callHook("onCast", player, skill);
+            // ScriptRunner를 통해 파이프라인 시작
+            scriptRunner.run(skill, meta);
 
             // 시전 성공 알림
-            player.sendActionBar(Component.text(skill.getName() + " 시전!", NamedTextColor.GREEN));
+            player.sendActionBar(net.kyori.adventure.text.Component.text(skill.getName() + " 시전!",
+                    net.kyori.adventure.text.format.NamedTextColor.GREEN));
         });
     }
 }

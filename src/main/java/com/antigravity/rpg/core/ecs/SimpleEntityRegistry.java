@@ -81,4 +81,16 @@ public class SimpleEntityRegistry implements EntityRegistry {
         Map<Class<? extends Component>, Component> components = entityComponents.get(id);
         return components != null && components.containsKey(componentClass);
     }
+
+    @Override
+    public java.util.List<UUID> getEntitiesWithComponent(Class<? extends Component> componentClass) {
+        java.util.List<UUID> result = new java.util.ArrayList<>();
+        for (Map.Entry<UUID, Integer> entry : uuidToId.entrySet()) {
+            Map<Class<? extends Component>, Component> components = entityComponents.get(entry.getValue());
+            if (components != null && components.containsKey(componentClass)) {
+                result.add(entry.getKey());
+            }
+        }
+        return result;
+    }
 }

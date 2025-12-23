@@ -54,4 +54,12 @@ public interface EntityRegistry {
      * @return 보유 여부
      */
     boolean hasComponent(UUID entityId, Class<? extends Component> componentClass);
+
+    /**
+     * 특정 컴포넌트를 보유하고 있는 모든 엔티티 ID 리스트를 반환합니다.
+     * 
+     * @param componentClass 확인할 컴포넌트 클래스
+     * @return 엔티티 UUID 리스트
+     */
+    java.util.List<UUID> getEntitiesWithComponent(Class<? extends Component> componentClass);
 }
