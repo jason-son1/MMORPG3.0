@@ -97,6 +97,12 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
     protected PlayerData loadFromDb(UUID key) throws Exception {
         PlayerData data = null;
 
+        // 세션 락 체크 (단순 구현: PlayerData가 이미 캐시에 있으면 로드 방지 가능하지만,
+        // 여기서는 DB의 다른 필드나 Redis/SQL 등을 통한 실제 락 로직이 들어갈 자리입니다.)
+        if (isSessionLocked(key)) {
+            throw new IllegalStateException("Player session is already locked on another server/session.");
+        }
+
         String selectSql = "SELECT json_data FROM player_data_v2 WHERE uuid = ?";
         try (Connection conn = databaseService.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(selectSql)) {
@@ -155,6 +161,15 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
             stmt.setString(1, key.toString());
             stmt.executeUpdate();
         }
+    }
+
+    /**
+     * 특정 플레이어의 세션이 다른 곳에서 잠겨 있는지 확인합니다.
+     */
+    private boolean isSessionLocked(UUID uuid) {
+        // 실제 구현에서는 Redis나 전역 상태 DB를 조회해야 함
+        // 여기서는 같은 서버 내 중복 캐시 존재 여부만 체크하는 더미 구현
+        return false;
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.antigravity.rpg.feature.skill;
 
 import com.antigravity.rpg.api.service.Service;
+import com.antigravity.rpg.core.script.LuaScriptService;
 import com.antigravity.rpg.core.engine.trigger.TriggerService;
 import com.antigravity.rpg.feature.player.PlayerData;
 import com.antigravity.rpg.feature.player.PlayerProfileService;
@@ -23,16 +24,19 @@ public class SkillCastService implements Service {
     private final SkillManager skillManager;
     private final TriggerService triggerService;
     private final com.antigravity.rpg.feature.skill.mechanic.MechanicFactory mechanicFactory;
+    private final LuaScriptService luaScriptService;
 
     @Inject
     public SkillCastService(JavaPlugin plugin, PlayerProfileService playerProfileService,
             SkillManager skillManager, TriggerService triggerService,
-            com.antigravity.rpg.feature.skill.mechanic.MechanicFactory mechanicFactory) {
+            com.antigravity.rpg.feature.skill.mechanic.MechanicFactory mechanicFactory,
+            LuaScriptService luaScriptService) {
         this.plugin = plugin;
         this.playerProfileService = playerProfileService;
         this.skillManager = skillManager;
         this.triggerService = triggerService;
         this.mechanicFactory = mechanicFactory;
+        this.luaScriptService = luaScriptService;
     }
 
     @Override
@@ -115,6 +119,9 @@ public class SkillCastService implements Service {
                     mechanic.cast(meta);
                 }
             }
+
+            // Lua onCast 훅 호출
+            luaScriptService.callHook("onCast", player, skill);
 
             // 시전 성공 알림
             player.sendActionBar(Component.text(skill.getName() + " 시전!", NamedTextColor.GREEN));

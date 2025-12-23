@@ -88,4 +88,11 @@ public abstract class AbstractCachedRepository<K, V> implements Repository<K, V>
     public void unregister(K key) {
         cache.synchronous().invalidate(key);
     }
+
+    /**
+     * 현재 캐시에 로드된 모든 데이터를 반환합니다.
+     */
+    public java.util.Map<K, V> getAllCached() {
+        return cache.synchronous().asMap();
+    }
 }

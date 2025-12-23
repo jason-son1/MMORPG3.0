@@ -14,7 +14,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import com.antigravity.rpg.feature.social.PartyManager;
+import com.antigravity.rpg.feature.quest.QuestManager;
+import com.antigravity.rpg.feature.ui.DamageIndicatorService;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.entity.Monster;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -30,13 +34,22 @@ public class CombatService implements Service, Listener {
     private final PlayerProfileService playerProfileService;
     private final SimpleEntityRegistry entityRegistry;
 
+    private final PartyManager partyManager;
+    private final QuestManager questManager;
+    private final DamageIndicatorService damageIndicatorService;
+
     @Inject
     public CombatService(JavaPlugin plugin, DamageProcessor damageProcessor,
-            PlayerProfileService playerProfileService, SimpleEntityRegistry entityRegistry) {
+            PlayerProfileService playerProfileService, SimpleEntityRegistry entityRegistry,
+            PartyManager partyManager, QuestManager questManager,
+            DamageIndicatorService damageIndicatorService) {
         this.plugin = plugin;
         this.damageProcessor = damageProcessor;
         this.playerProfileService = playerProfileService;
         this.entityRegistry = entityRegistry;
+        this.partyManager = partyManager;
+        this.questManager = questManager;
+        this.damageIndicatorService = damageIndicatorService;
     }
 
     @Override
@@ -80,6 +93,14 @@ public class CombatService implements Service, Listener {
         if (attacker == null)
             return;
 
+        // 파티원 간 데미지 방지 (Friendly Fire)
+        if (attacker instanceof Player && victim instanceof Player) {
+            if (partyManager.isInSameParty(attacker.getUniqueId(), victim.getUniqueId())) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+
         // 공격자와 피격자의 스탯 정보를 가져옵니다.
         EntityStatData attackerStats = getStats(attacker);
         EntityStatData victimStats = getStats(victim);
@@ -100,6 +121,9 @@ public class CombatService implements Service, Listener {
 
         // 연산 결과인 최종 데미지를 이벤트에 설정합니다.
         event.setDamage(context.getFinalDamage());
+
+        // 데미지 인디케이터 표시
+        damageIndicatorService.displayDamage(victim.getLocation(), context.getFinalDamage(), context.isCritical());
 
         // 치명타(Critical) 발생 시 시각/청각 효과 재생
         if (context.isCritical()) {

@@ -78,6 +78,30 @@ public class LuaScriptService implements Service {
         }
     }
 
+    /**
+     * 특정 이벤트를 Lua 훅으로 호출합니다.
+     * 
+     * @param eventName 훅 이름 (예: "onCast", "onHit")
+     * @param args      전달할 인자들
+     */
+    public void callHook(String eventName, Object... args) {
+        LuaValue[] luaArgs = new LuaValue[args.length];
+        for (int i = 0; i < args.length; i++) {
+            luaArgs[i] = LuaBinding.toLua(args[i]);
+        }
+
+        // 글로벌 함수 호출 (예: onCast(user, skill))
+        LuaValue func = globals.get(eventName);
+        if (!func.isnil()) {
+            try {
+                func.invoke(luaArgs);
+            } catch (Exception e) {
+                plugin.getLogger().severe("Error calling Lua hook: " + eventName);
+                e.printStackTrace();
+            }
+        }
+    }
+
     public double calculateDamage(DamageContext context) {
         try {
             LuaValue func = globals.get("calculate_damage");
@@ -87,7 +111,7 @@ public class LuaScriptService implements Service {
 
             LuaValue attacker = CoerceJavaToLua.coerce(context.getAttackerStats());
             LuaValue victim = CoerceJavaToLua.coerce(context.getVictimStats());
-            LuaValue ctx = CoerceJavaToLua.coerce(context);
+            LuaValue ctx = LuaBinding.wrap(context);
 
             // Calling with 3 args: attacker, victim, context
             LuaValue ret = func.call(attacker, victim, ctx);

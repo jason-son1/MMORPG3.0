@@ -48,8 +48,13 @@ public class RpgCoreModule extends AbstractModule {
         bind(com.antigravity.rpg.core.event.PriorityEventBus.class).in(Singleton.class);
 
         // Features
-        bind(com.antigravity.rpg.feature.classes.ClassRegistry.class).in(Singleton.class);
         bind(com.antigravity.rpg.core.script.LuaScriptService.class).in(Singleton.class);
+
+        // Core Managers
+        bind(com.antigravity.rpg.feature.quest.QuestManager.class).in(Singleton.class);
+        bind(com.antigravity.rpg.feature.social.PartyManager.class).in(Singleton.class);
+        bind(com.antigravity.rpg.feature.loot.LootManager.class).in(Singleton.class);
+        bind(com.antigravity.rpg.feature.item.CustomItemFactory.class).in(Singleton.class);
     }
 
     /*

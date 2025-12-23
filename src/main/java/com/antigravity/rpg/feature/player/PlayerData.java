@@ -15,6 +15,9 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
     @Getter
     private final UUID uuid;
 
+    @Getter
+    private boolean dirty = false;
+
     // 핵심 데이터 저장소 (레벨, 경험치 등 가변 데이터)
     private final Map<String, Object> data = new ConcurrentHashMap<>();
 
@@ -45,6 +48,15 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
     // --- 데이터 접근자 (Accessors) ---
     public void set(String key, Object value) {
         data.put(key, value);
+        markDirty();
+    }
+
+    public void markDirty() {
+        this.dirty = true;
+    }
+
+    public void clearDirty() {
+        this.dirty = false;
     }
 
     public <T> T get(String key, Class<T> type) {
@@ -83,6 +95,7 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
 
     public void setLevel(int level) {
         data.put("level", level);
+        markDirty();
     }
 
     public double getExperience() {
@@ -92,6 +105,7 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
 
     public void setExperience(double experience) {
         data.put("experience", experience);
+        markDirty();
     }
 
     public ResourcePool getResources() {
@@ -145,13 +159,14 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
         return data;
     }
 
+    public void setMana(double mana) {
+        resources.setCurrentMana(mana);
+        markDirty();
+    }
+
     // --- 리소스 편의 메서드 ---
     public double getMana() {
         return resources.getCurrentMana();
-    }
-
-    public void setMana(double mana) {
-        resources.setCurrentMana(mana);
     }
 
     public double getStamina() {
@@ -160,6 +175,7 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
 
     public void setStamina(double stamina) {
         resources.setCurrentStamina(stamina);
+        markDirty();
     }
 
     public double getStat(String statId, double defaultValue) {

@@ -64,6 +64,16 @@ public class AntiGravityPlugin extends JavaPlugin {
             // 스킬 시전 서비스
             serviceManager.startService(injector.getInstance(com.antigravity.rpg.feature.skill.SkillCastService.class));
 
+            // UI 서비스
+            serviceManager.startService(injector.getInstance(com.antigravity.rpg.feature.ui.ActionBarService.class));
+            serviceManager
+                    .startService(injector.getInstance(com.antigravity.rpg.feature.ui.DamageIndicatorService.class));
+
+            // 자동 저장 태스크 시작 (5분 주기)
+            new com.antigravity.rpg.data.repository.AutoSaveTask(
+                    injector.getInstance(com.antigravity.rpg.feature.player.PlayerProfileService.class))
+                    .runTaskTimer(this, 1200L, 6000L);
+
             // [NEW] ECS 시스템 매니저 시작
             com.antigravity.rpg.core.ecs.SystemManager systemManager = injector
                     .getInstance(com.antigravity.rpg.core.ecs.SystemManager.class);

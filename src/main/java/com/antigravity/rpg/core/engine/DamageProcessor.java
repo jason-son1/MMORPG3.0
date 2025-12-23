@@ -33,6 +33,9 @@ public class DamageProcessor {
 
         // 음수 데미지 방지
         context.setFinalDamage(Math.max(0, damage));
+
+        // onHit 훅 호출 (아이템 효과, 패시브 스킬 등)
+        luaScriptService.callHook("onHit", context);
     }
 
     /**
