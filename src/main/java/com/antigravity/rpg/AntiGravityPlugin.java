@@ -75,9 +75,23 @@ public class AntiGravityPlugin extends JavaPlugin {
             // 매니저 서비스 시작 (게임 루프 가동)
             serviceManager.startService(systemManager);
 
+            // [NEW] Event Pipeline Bridge & Action Handler 등록
+            getServer().getPluginManager().registerEvents(
+                    injector.getInstance(com.antigravity.rpg.core.engine.listener.CombatEventListener.class), this);
+            getServer().getPluginManager().registerEvents(
+                    injector.getInstance(com.antigravity.rpg.core.engine.listener.ActionHandler.class), this);
+            getServer().getPluginManager().registerEvents(
+                    injector.getInstance(com.antigravity.rpg.core.engine.listener.EquipmentListener.class), this);
+
             // [NEW] Universal Event Listener 등록
             getServer().getPluginManager().registerEvents(
                     injector.getInstance(com.antigravity.rpg.core.engine.listener.UniversalEventListener.class), this);
+
+            // [NEW] MythicMobs Hook 등록
+            if (getServer().getPluginManager().isPluginEnabled("MythicMobs")) {
+                getServer().getPluginManager().registerEvents(
+                        injector.getInstance(com.antigravity.rpg.core.engine.hook.MythicMobsHook.class), this);
+            }
 
             // 데이터 Import/Export 서비스 및 관리자 명령어
             if (getCommand("rpgadmin") != null) {

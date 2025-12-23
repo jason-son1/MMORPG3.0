@@ -4,6 +4,8 @@ import lombok.Getter;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 
 /**
  * 플레이어의 모든 데이터를 담고 있는 데이터 객체입니다.
@@ -22,6 +24,10 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
     // 리소스 풀 (마나, 스태미나 등)
     private final ResourcePool resources;
 
+    // [NEW] 커스텀 장비 슬롯
+    @Getter
+    private final Map<com.antigravity.rpg.feature.item.EquipmentSlot, org.bukkit.inventory.ItemStack> equipment;
+
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
         // 기본값 초기화
@@ -33,6 +39,7 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
         this.data.put("savedStats", new ConcurrentHashMap<String, Double>());
 
         this.resources = new ResourcePool();
+        this.equipment = new ConcurrentHashMap<>();
     }
 
     // --- 데이터 접근자 (Accessors) ---
@@ -261,7 +268,56 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
                 }
             }
         }
+
+        // 3. 커스텀 장비 스탯 반영
+        for (org.bukkit.inventory.ItemStack item : equipment.values()) {
+            if (item == null || item.getType().isAir())
+                continue;
+            // PDC나 NBT에서 해당 스탯 값을 가져와 합산 (추후 PDCAdapter와 연동)
+            val += getItemStat(item, statId);
+        }
+
         return val;
+    }
+
+    /**
+     * 아이템으로부터 특정 스탯 값을 가져옵니다.
+     */
+    private double getItemStat(org.bukkit.inventory.ItemStack item, String statId) {
+        if (!item.hasItemMeta())
+            return 0.0;
+        // 임시: PDC에서 직접 읽기 (Phase 6에서 PDCAdapter로 고도화 예정)
+        org.bukkit.persistence.PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+        org.bukkit.NamespacedKey key = new org.bukkit.NamespacedKey("mmorpg", "stat_" + statId.toLowerCase());
+        return pdc.getOrDefault(key, org.bukkit.persistence.PersistentDataType.DOUBLE, 0.0);
+    }
+
+    /**
+     * 플레이어의 스탯을 재계산하고 필요 시 UI를 업데이트합니다.
+     */
+    public void recalculateStats() {
+        // 현재는 실시간 계산 방식(getStat 호출 시 계산)이므로
+        // 최대 체력 변경 등 변화가 필요한 사항이 있다면 여기서 처리합니다.
+        org.bukkit.entity.Player p = org.bukkit.Bukkit.getPlayer(uuid);
+        if (p == null)
+            return;
+
+        double maxHealth = getStat("MAX_HEALTH", 20.0);
+        AttributeInstance attrInstance = null;
+        try {
+            attrInstance = p.getAttribute(Attribute.valueOf("MAX_HEALTH"));
+        } catch (Exception e) {
+            try {
+                attrInstance = p.getAttribute(Attribute.valueOf("GENERIC_MAX_HEALTH"));
+            } catch (Exception e2) {
+            }
+        }
+
+        if (attrInstance != null) {
+            attrInstance.setBaseValue(maxHealth);
+        }
+
+        // 추가적인 스탯 동기화 로직...
     }
 
     @Override

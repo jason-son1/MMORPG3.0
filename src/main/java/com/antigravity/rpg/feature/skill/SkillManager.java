@@ -84,14 +84,42 @@ public class SkillManager implements Service {
 
                 SkillDefinition skill = new SkillDefinition(id, name, cooldown, mana, stamina);
 
-                // 트리거 및 액션 파싱
+                // 트리거 및 액션 파싱 (레거시 방식 지원)
                 List<String> actions = s.getStringList("actions");
                 List<String> conditions = s.getStringList("conditions");
 
                 if (!actions.isEmpty() || !conditions.isEmpty()) {
-                    // TriggerService를 통해 문자열 리스트를 트리거 객체로 변환 (레거시 지원 포함)
                     Trigger trigger = triggerService.parseTrigger(conditions, actions);
                     skill.addTrigger(trigger);
+                }
+
+                // [NEW] 메카닉(Mechanic) 파싱
+                ConfigurationSection mechanicsSection = s.getConfigurationSection("mechanics");
+                if (mechanicsSection != null) {
+                    for (String key : mechanicsSection.getKeys(false)) {
+                        ConfigurationSection m = mechanicsSection.getConfigurationSection(key);
+                        if (m != null) {
+                            String type = m.getString("type");
+                            if (type != null) {
+                                Map<String, Object> values = m.getValues(false);
+                                skill.addMechanic(new SkillDefinition.MechanicConfig(type, values));
+                            }
+                        }
+                    }
+                } else if (s.getList("mechanics") instanceof List) {
+                    // 리스트 형태의 메카닉 파싱 지원
+                    List<?> list = s.getList("mechanics");
+                    if (list != null) {
+                        for (Object obj : list) {
+                            if (obj instanceof Map) {
+                                Map<String, Object> map = (Map<String, Object>) obj;
+                                String type = (String) map.get("type");
+                                if (type != null) {
+                                    skill.addMechanic(new SkillDefinition.MechanicConfig(type, map));
+                                }
+                            }
+                        }
+                    }
                 }
 
                 skills.put(id, skill);

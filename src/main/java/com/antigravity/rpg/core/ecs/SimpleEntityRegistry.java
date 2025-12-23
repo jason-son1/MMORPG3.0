@@ -24,14 +24,18 @@ public class SimpleEntityRegistry implements EntityRegistry {
     @Override
     public UUID createEntity() {
         UUID uuid = UUID.randomUUID();
-        int id = nextId.getAndIncrement();
-
-        uuidToId.put(uuid, id);
-
-        // IdentityHashMap은 클래스 키 조회 시 참조 비교를 사용하므로 더 빠릅니다.
-        // 스레드 안전성을 위해 synchronizedMap으로 감쌉니다.
-        entityComponents.put(id, Collections.synchronizedMap(new IdentityHashMap<>()));
+        registerEntity(uuid);
         return uuid;
+    }
+
+    @Override
+    public void registerEntity(UUID uuid) {
+        if (uuidToId.containsKey(uuid))
+            return;
+
+        int id = nextId.getAndIncrement();
+        uuidToId.put(uuid, id);
+        entityComponents.put(id, Collections.synchronizedMap(new IdentityHashMap<>()));
     }
 
     @Override

@@ -1,0 +1,5 @@
+향후 과제
+Lua Script 확장: 복잡한 공식(예: 치명타 데미지, 복합 속성 계산)을 위한 Lua 연동 강화.
+ItemsAdder 지원: ItemsAdderProvider 구현을 통한 외형 시스템 확장.
+데이터베이스 동기화: PersistenceManager를 통한 비동기 데이터 저장 안정화.
+

@@ -16,6 +16,13 @@ public interface EntityRegistry {
     UUID createEntity();
 
     /**
+     * 기존의 UUID를 가진 엔티티를 시스템에 등록합니다.
+     * 
+     * @param uuid 등록할 엔티티의 UUID
+     */
+    void registerEntity(UUID uuid);
+
+    /**
      * 엔티티와 해당 엔티티에 연결된 모든 컴포넌트를 제거합니다.
      * 
      * @param entityId 제거할 엔티티 ID

@@ -13,18 +13,20 @@ import java.util.Map;
 public class ItemGenerator {
 
     private final SplittableRandom random = new SplittableRandom();
+    private final PDCAdapter pdcAdapter;
+
+    @com.google.inject.Inject
+    public ItemGenerator(PDCAdapter pdcAdapter) {
+        this.pdcAdapter = pdcAdapter;
+    }
 
     public ItemStack generate(ItemTemplate template, int level) {
         ItemStack item = new ItemStack(template.getMaterial());
         ItemMeta meta = item.getItemMeta();
+        if (meta == null)
+            return item;
 
-        // 1. Calculate Stats
-        // Formula: Base + (Level * Scale) + (Gaussian * Spread)
-        // Note: Gaussian is nextDouble() * 2 - 1 for simple distribution or Box-Muller
-        // if specific curve needed
-        // Here we use simple linear spread for performance: base * (1 + (rnd[-1,1] *
-        // spread))
-
+        // 1. Calculate and Store Stats
         for (Map.Entry<String, Double> entry : template.getBaseStats().entrySet()) {
             String statId = entry.getKey();
             double base = entry.getValue();
@@ -32,15 +34,17 @@ public class ItemGenerator {
             double spread = template.getStatSpread().getOrDefault(statId, 0.0);
 
             double levelValue = base + (level * scale);
-            double variance = (random.nextDouble() * 2.0 - 1.0) * spread; // +/- spread %
+            double variance = (random.nextDouble() * 2.0 - 1.0) * spread;
 
             double finalValue = levelValue * (1.0 + variance);
 
-            // TODO: Store in NBT
-            // storeInNbt(meta, statId, finalValue);
+            // PDC에 스탯 저장
+            pdcAdapter.setStat(item, statId, finalValue);
         }
 
-        item.setItemMeta(meta);
+        // 2. Revision 저장
+        pdcAdapter.setRevision(item, template.getRevision());
+
         return item;
     }
 }

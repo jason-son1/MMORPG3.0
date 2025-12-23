@@ -10,6 +10,7 @@ public class ItemTemplate {
     private final String id;
     private final Material material;
     private final String displayName;
+    private int revision = 1;
 
     // Base Stats: StatID -> Base Value
     private final Map<String, Double> baseStats = new HashMap<>();
@@ -24,5 +25,13 @@ public class ItemTemplate {
         baseStats.put(stat, base);
         statSpread.put(stat, spread);
         statScaling.put(stat, scale);
+    }
+
+    public int getRevision() {
+        return revision;
+    }
+
+    public void setRevision(int revision) {
+        this.revision = revision;
     }
 }
