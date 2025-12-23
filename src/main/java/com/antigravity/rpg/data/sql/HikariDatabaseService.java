@@ -10,6 +10,9 @@ import com.google.inject.Singleton;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+/**
+ * HikariCP를 사용한 데이터베이스 연결 관리 서비스입니다.
+ */
 @Singleton
 public class HikariDatabaseService implements DatabaseService {
 
@@ -37,6 +40,7 @@ public class HikariDatabaseService implements DatabaseService {
         config.setUsername(username);
         config.setPassword(password);
 
+        // 성능 최적화 설정
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
@@ -54,18 +58,19 @@ public class HikariDatabaseService implements DatabaseService {
         }
     }
 
+    /**
+     * 전용 데이터베이스 테이블이 없을 경우 생성합니다.
+     */
     private void initDatabase() throws SQLException {
         try (Connection conn = dataSource.getConnection();
                 java.sql.Statement stmt = conn.createStatement()) {
 
-            // 새로운 JSON 기반 플레이어 데이터 테이블 (player_data_v2)
+            // JSON 기반 플레이어 데이터 테이블 (player_data_v2)
             stmt.execute("CREATE TABLE IF NOT EXISTS player_data_v2 (" +
                     "uuid VARCHAR(36) PRIMARY KEY, " +
                     "json_data LONGTEXT, " +
                     "last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" +
                     ");");
-
-            // 구형 테이블(player_data, player_skills 등) 생성 코드 제거됨 (Cleanup)
 
             plugin.getLogger().info("데이터베이스 스키마 초기화 완료.");
         }
@@ -83,10 +88,14 @@ public class HikariDatabaseService implements DatabaseService {
         return "HikariDatabaseService";
     }
 
+    /**
+     * 커넥션 풀로부터 커넥션을 획득합니다.
+     * 반드시 try-with-resources 구문을 사용하여 반납해야 합니다.
+     */
     @Override
     public Connection getConnection() throws SQLException {
         if (dataSource == null) {
-            throw new SQLException("DataSource is not initialized!");
+            throw new SQLException("DataSource가 초기화되지 않았습니다!");
         }
         return dataSource.getConnection();
     }

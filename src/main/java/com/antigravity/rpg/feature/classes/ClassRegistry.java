@@ -15,6 +15,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 게임 내 직업(Class) 정보를 관리하고 로드하는 클래스입니다.
+ * 'classes' 폴더 내의 YAML 파일들을 읽어 직업 능력치(기본/성장) 및 스킬 목록을 정의합니다.
+ */
 @Singleton
 public class ClassRegistry {
 
@@ -26,35 +30,37 @@ public class ClassRegistry {
     public ClassRegistry(AntiGravityPlugin plugin, ConfigDirectoryLoader configLoader) {
         this.plugin = plugin;
         this.configLoader = configLoader;
+        // 초기 로드 수행
         loadClasses();
     }
 
+    /**
+     * 설정을 다시 로드합니다.
+     */
     public void reload() {
         classes.clear();
         loadClasses();
     }
 
+    /**
+     * 'classes' 디렉토리를 탐색하여 모든 직업 설정을 로드합니다.
+     */
     private void loadClasses() {
         File classDir = new File(plugin.getDataFolder(), "classes");
         if (!classDir.exists()) {
             classDir.mkdirs();
-            // 기본 직업 파일 생성 (필요 시)
         }
 
+        // ConfigDirectoryLoader를 통해 디렉토리 내 모든 YAML 파일을 로드합니다.
         Map<String, YamlConfiguration> configs = configLoader.loadAll(classDir);
         for (Map.Entry<String, YamlConfiguration> entry : configs.entrySet()) {
             YamlConfiguration config = entry.getValue();
 
-            // classes 섹션 하위를 찾을 수도 있고, 루트를 직업 정의로 볼 수도 있음.
-            // 여기서는 파일 하나가 직업 하나라고 가정하거나, 루트 키를 직업 ID로 가정.
-            // 요구사항: classes/warrior/warrior.yml -> warrior
-            // 보통 파일 내에 id 필드를 두는 것이 안전함.
-
+            // 파일 내의 모든 루트 키를 순회하며 직업 정의를 추출합니다.
             for (String key : config.getKeys(false)) {
-                // 루트 키가 직업 ID인 경우
                 if (config.isConfigurationSection(key)) {
                     ConfigurationSection section = config.getConfigurationSection(key);
-                    // 직업 정의가 맞는지 확인 (예: base_stats, skills 등이 있는지)
+                    // 'base_stats' 또는 'skills' 섹션이 포함된 경우 직업으로 간주합니다.
                     if (section.contains("base_stats") || section.contains("skills")) {
                         registerClassFromSection(key, section);
                     }
@@ -62,12 +68,16 @@ public class ClassRegistry {
             }
         }
 
-        plugin.getLogger().info("Loaded " + classes.size() + " classes.");
+        plugin.getLogger().info("총 " + classes.size() + "개의 직업이 로드되었습니다.");
     }
 
+    /**
+     * ConfigurationSection으로부터 ClassDefinition 객체를 생성하고 등록합니다.
+     */
     private void registerClassFromSection(String id, ConfigurationSection section) {
         String displayName = section.getString("display_name", id);
 
+        // 기본 능력치(Base Stats)
         Map<String, Double> baseStats = new HashMap<>();
         ConfigurationSection baseSec = section.getConfigurationSection("base_stats");
         if (baseSec != null) {
@@ -76,6 +86,7 @@ public class ClassRegistry {
             }
         }
 
+        // 성장 능력치(Scale Stats) - 레벨업 가중치
         Map<String, Double> scaleStats = new HashMap<>();
         ConfigurationSection scaleSec = section.getConfigurationSection("scale_stats");
         if (scaleSec != null) {
@@ -84,6 +95,7 @@ public class ClassRegistry {
             }
         }
 
+        // 직업 고유 스킬 목록
         List<String> skills = section.getStringList("skills");
         if (skills == null)
             skills = new ArrayList<>();
@@ -92,6 +104,9 @@ public class ClassRegistry {
         classes.put(id, classDef);
     }
 
+    /**
+     * 특정 식별자에 해당하는 직업 정보를 가져옵니다.
+     */
     public Optional<ClassDefinition> getClass(String id) {
         return Optional.ofNullable(classes.get(id));
     }

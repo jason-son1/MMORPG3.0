@@ -16,7 +16,6 @@ import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * 데이터 동기화 관리자 및 리로드 명령어
@@ -85,8 +84,7 @@ public class DataSyncCommand implements CommandExecutor {
                 service.exportData(uuid).thenAccept(msg -> sender.sendMessage(msg));
             } else {
                 sender.sendMessage(Component.text("Importing data for: " + targetName, NamedTextColor.GRAY));
-                CompletableFuture.runAsync(() -> {
-                    Component result = service.importData(uuid);
+                service.importData(uuid).thenAccept(result -> {
                     Bukkit.getScheduler().runTask(Bukkit.getPluginManager().getPlugin("AntiGravityRPG"), () -> {
                         sender.sendMessage(result);
                     });

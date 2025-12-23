@@ -2,6 +2,7 @@ package com.antigravity.rpg.core.ecs;
 
 import com.antigravity.rpg.AntiGravityPlugin;
 import com.antigravity.rpg.api.service.Service;
+import com.antigravity.rpg.core.engine.StatCalculator;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Singleton;
@@ -12,22 +13,24 @@ import java.util.List;
 
 /**
  * ECS 시스템들을 통합 관리하고 주기적으로 실행하는 매니저입니다.
- * BukkitRunnable을 상속받아 메인 게임 루프 역할을 수행합니다.
+ * BukkitRunnable을 상속받아 메인 게임 루프 역할을 수행하며, 스탯 캐시 초기화를 담당합니다.
  */
 @Singleton
 public class SystemManager extends BukkitRunnable implements Service {
 
     private final AntiGravityPlugin plugin;
     private final Injector injector;
+    private final StatCalculator statCalculator;
     private final List<System> systems = new ArrayList<>();
 
     // 마지막 업데이트 시간을 기록하여 델타 타임(초 단위) 계산
     private long lastTickTime;
 
     @Inject
-    public SystemManager(AntiGravityPlugin plugin, Injector injector) {
+    public SystemManager(AntiGravityPlugin plugin, Injector injector, StatCalculator statCalculator) {
         this.plugin = plugin;
         this.injector = injector;
+        this.statCalculator = statCalculator;
     }
 
     @Override
@@ -62,12 +65,15 @@ public class SystemManager extends BukkitRunnable implements Service {
 
     @Override
     public void run() {
+        // 1. 매 틱 시작 시 스탯 계산기 캐시 초기화 (성능 최적화)
+        statCalculator.clearCache();
+
         long currentTime = java.lang.System.currentTimeMillis();
         // 델타 타임 계산 (초 단위)
         double deltaTime = (currentTime - lastTickTime) / 1000.0;
         lastTickTime = currentTime;
 
-        // 모든 등록된 시스템 업데이트
+        // 2. 모든 등록된 시스템 업데이트
         for (System system : systems) {
             try {
                 system.tick(deltaTime);
@@ -78,6 +84,9 @@ public class SystemManager extends BukkitRunnable implements Service {
         }
     }
 
+    /**
+     * 이미 생성된 시스템 인스턴스를 직접 등록합니다.
+     */
     public void registerSystemInstance(System system) {
         systems.add(system);
         plugin.getLogger().info("[SystemManager] 시스템 인스턴스 등록됨: " + system.getClass().getSimpleName());

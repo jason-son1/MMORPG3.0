@@ -19,8 +19,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * CombatService는 전투 시스템의 핵심 진입점입니다.
- * Bukkit의 데미지 이벤트를 가로채서 자체 데미지 파이프라인(DamageProcessor)으로 전달합니다.
+ * CombatService는 전투 시스템의 핵심 제어 서비스입니다.
+ * Bukkit의 데미지 이벤트를 가로채서 자체 데미지 연산 파이프라인(DamageProcessor)으로 전달하고 최종 결과를 적용합니다.
  */
 @Singleton
 public class CombatService implements Service, Listener {
@@ -41,14 +41,13 @@ public class CombatService implements Service, Listener {
 
     @Override
     public void onEnable() {
-        // 이벤트 리스너 등록
+        // 이벤트 리스너 등록 (엔티티 데미지 이벤트 감지 목적)
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
-        plugin.getLogger().info("[CombatService] Damage pipeline active. (전투 시스템 활성화됨)");
+        plugin.getLogger().info("[CombatService] 데미지 파이프라인이 활성화되었습니다.");
     }
 
     @Override
     public void onDisable() {
-        // 필요시 리스너 해제 (대부분 플러그인 비활성화 시 자동 처리됨)
     }
 
     @Override
@@ -57,8 +56,8 @@ public class CombatService implements Service, Listener {
     }
 
     /**
-     * 엔티티가 데미지를 입을 때 호출됩니다.
-     * 여기서 바닐라 데미지 계산 대신 커스텀 공식을 적용합니다.
+     * 엔티티가 다른 엔티티나 발사체에 의해 데미지를 입을 때 호출됩니다.
+     * 바닐라 데미지 계산을 무시하고 RPG 스탯 기반의 커스텀 공식을 적용합니다.
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityDamage(EntityDamageByEntityEvent event) {
@@ -68,7 +67,7 @@ public class CombatService implements Service, Listener {
         LivingEntity victim = (LivingEntity) event.getEntity();
         LivingEntity attacker = null;
 
-        // 공격자 판별 (직접 공격 또는 발사체)
+        // 공격자 판별: 직접 타격 또는 발사체(화살, 마법 등)
         if (event.getDamager() instanceof LivingEntity) {
             attacker = (LivingEntity) event.getDamager();
         } else if (event.getDamager() instanceof Projectile) {
@@ -81,61 +80,63 @@ public class CombatService implements Service, Listener {
         if (attacker == null)
             return;
 
-        // 스탯 가져오기 (동기 처리 필요 - 이벤트가 메인 스레드에서 발생함)
-        // 플레이어의 경우 PlayerProfileService 캐시에서 조회
+        // 공격자와 피격자의 스탯 정보를 가져옵니다.
         EntityStatData attackerStats = getStats(attacker);
         EntityStatData victimStats = getStats(victim);
 
+        // 데이터가 없는 경우 (예: 로딩 중) 처리를 중단합니다.
         if (attackerStats == null || victimStats == null) {
-            // 데이터가 없는 경우 (로딩 중 등), 바닐라 데미지 적용 또는 취소
             return;
         }
 
-        // 데미지 컨텍스트 생성 (DamageContext)
+        // 데미지 연산을 위한 컨텍스트(Context) 생성
         DamageContext context = new DamageContext(attacker, victim, attackerStats, victimStats, event.getDamage());
 
-        // 태그 추가 (예: 발사체는 PHYSICAL, 포션은 MAGIC 등 설정 가능)
-        context.addTag(DamageTag.PHYSICAL); // 기본적으로 근접 물리 공격으로 가정
+        // 기본 태그 설정 (여기서는 물리 데미지로 가정)
+        context.addTag(DamageTag.PHYSICAL);
 
-        // 데미지 프로세서 실행 (핵심 데미지 공식 적용)
+        // 데미지 프로세서 실행 (컴포넌트 기반 연산 수행)
         damageProcessor.process(context);
 
-        // 최종 데미지 적용
+        // 연산 결과인 최종 데미지를 이벤트에 설정합니다.
         event.setDamage(context.getFinalDamage());
 
-        // 크리티컬 효과 (사운드/파티클)
+        // 치명타(Critical) 발생 시 시각/청각 효과 재생
         if (context.isCritical()) {
             victim.getWorld().spawnParticle(org.bukkit.Particle.CRIT, victim.getLocation().add(0, 1, 0), 10);
             victim.getWorld().playSound(victim.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 1.0f);
         }
     }
 
+    /**
+     * 엔티티의 스탯 정보를 추출합니다.
+     * 플레이어는 저장된 프로필에서, 몬스터는 엔티티 레지스트리에서 가져옵니다.
+     */
     private EntityStatData getStats(LivingEntity entity) {
         EntityStatData stats = new EntityStatData();
 
         if (entity instanceof Player) {
             Player p = (Player) entity;
-            // 캐시에서 동기적으로 가져옴 (Get from cache synchronously)
+            // 플레이어 프로필을 비동기 캐시에서 즉시 조회합니다.
             CompletableFuture<PlayerData> future = playerProfileService.find(p.getUniqueId());
             PlayerData data = future.getNow(null);
 
             if (data != null) {
-                // PlayerData의 스탯을 EntityStatData로 복사
+                // 저장된 모든 스탯을 EntityStatData로 복사합니다.
                 data.getSavedStats().forEach((key, value) -> {
                     if (value != null) {
                         stats.setStat(key, value);
                     }
                 });
 
-                // 기본값 보장
+                // 최소 공격력 보장
                 if (stats.getStat("PHYSICAL_DAMAGE") == 0)
                     stats.setStat("PHYSICAL_DAMAGE", 1);
             } else {
-                return null; // 플레이어 데이터가 아직 로드되지 않음
+                return null; // 프로필 로딩 미완료 시
             }
         } else {
-            // 몬스터: SimpleEntityRegistry에서 조회
-            // 있으면 사용, 없으면 기본값
+            // 몬스터의 경우 ECS 레지스트리에서 스탯 컴포넌트를 조회합니다.
             if (entityRegistry.hasComponent(entity.getUniqueId(), EntityStatData.class)) {
                 return entityRegistry.getComponent(entity.getUniqueId(), EntityStatData.class)
                         .orElse(getDefaultMonsterStats());
@@ -147,10 +148,13 @@ public class CombatService implements Service, Listener {
         return stats;
     }
 
+    /**
+     * 스탯 정보가 없는 몬스터를 위한 기본 스탯을 반환합니다.
+     */
     private EntityStatData getDefaultMonsterStats() {
         EntityStatData stats = new EntityStatData();
         stats.setStat("DEFENSE", 0);
-        stats.setStat("PHYSICAL_DAMAGE", 5); // 기본 몬스터 데미지
+        stats.setStat("PHYSICAL_DAMAGE", 5);
         return stats;
     }
 }

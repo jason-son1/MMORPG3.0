@@ -10,14 +10,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Optimized EntityRegistry using Integer IDs and IdentityHashMap.
+ * 정수 ID와 IdentityHashMap을 사용하여 최적화된 EntityRegistry 구현체입니다.
  */
 @Singleton
 public class SimpleEntityRegistry implements EntityRegistry {
 
     private final AtomicInteger nextId = new AtomicInteger(1);
     private final Map<UUID, Integer> uuidToId = new ConcurrentHashMap<>();
-    // Using Integer ID for faster lookups in the component map
+
+    // 조회를 빠르게 하기 위해 UUID 대신 내부 정수 ID를 키로 사용합니다.
     private final Map<Integer, Map<Class<? extends Component>, Component>> entityComponents = new ConcurrentHashMap<>();
 
     @Override
@@ -26,8 +27,9 @@ public class SimpleEntityRegistry implements EntityRegistry {
         int id = nextId.getAndIncrement();
 
         uuidToId.put(uuid, id);
-        // IdentityHashMap is faster for Class keys (reference equality).
-        // Wrapped in synchronizedMap for thread safety.
+
+        // IdentityHashMap은 클래스 키 조회 시 참조 비교를 사용하므로 더 빠릅니다.
+        // 스레드 안전성을 위해 synchronizedMap으로 감쌉니다.
         entityComponents.put(id, Collections.synchronizedMap(new IdentityHashMap<>()));
         return uuid;
     }

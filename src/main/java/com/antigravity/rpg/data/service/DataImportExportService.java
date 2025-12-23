@@ -30,10 +30,10 @@ public class DataImportExportService {
     }
 
     /**
-     * 특정 플레이어 데이터를 DB/메모리에서 파일로 내보냅니다.
+     * 특정 플레이어 데이터를 DB/메모리에서 로컬 YAML 파일로 내보냅니다 (Export).
      * 
      * @param uuid 대상 플레이어 UUID
-     * @return 작업 결과 메시지 Future
+     * @return 작업 결과 메시지를 포함한 Future
      */
     public CompletableFuture<Component> exportData(UUID uuid) {
         return playerProfileService.find(uuid).thenApply(data -> {
@@ -43,24 +43,26 @@ public class DataImportExportService {
             if (yamlFileManager.saveToYaml(uuid, data)) {
                 return Component.text("데이터 Export 성공: " + uuid, NamedTextColor.GREEN);
             } else {
-                return Component.text("데이터 Export 실패 (로그 확인)", NamedTextColor.RED);
+                return Component.text("데이터 Export 실패 (로그를 확인하세요)", NamedTextColor.RED);
             }
         });
     }
 
     /**
-     * 로컬 파일 데이터를 DB로 불러옵니다. 접속 중인 플레이어는 킥 처리됩니다.
+     * 로컬 파일 데이터를 DB로 불러옵니다 (Import).
+     * 주의: 작업 도중 데이터 무결성을 위해 온라인 상태인 플레이어는 킥 처리됩니다.
      * 
      * @param uuid 대상 플레이어 UUID
-     * @return 작업 결과 메시지
+     * @return 작업 결과 메시지를 포함한 CompletableFuture
      */
-    public Component importData(UUID uuid) {
-        // 1. 파일 확인
+    public CompletableFuture<Component> importData(UUID uuid) {
+        // 1. 파일 존재 여부 확인
         if (!yamlFileManager.hasFile(uuid)) {
-            return Component.text("가져올 YAML 파일이 없습니다: " + uuid, NamedTextColor.RED);
+            return CompletableFuture.completedFuture(
+                    Component.text("가져올 YAML 파일이 없습니다: " + uuid, NamedTextColor.RED));
         }
 
-        // 2. 온라인 플레이어 처리 (킥)
+        // 2. 온라인 플레이어 처리 (데이터 충돌 방지를 위한 킥)
         Player onlinePlayer = Bukkit.getPlayer(uuid);
         if (onlinePlayer != null) {
             onlinePlayer.kick(Component.text("[데이터 동기화] 데이터 Import 작업으로 인해 연결이 종료되었습니다.", NamedTextColor.YELLOW));
@@ -69,31 +71,19 @@ public class DataImportExportService {
         // 3. YAML 파일 로드
         Map<String, Object> map = yamlFileManager.loadFromYaml(uuid);
         if (map == null || map.isEmpty()) {
-            return Component.text("YAML 파일을 읽을 수 없거나 비어있습니다.", NamedTextColor.RED);
+            return CompletableFuture.completedFuture(
+                    Component.text("YAML 파일을 읽을 수 없거나 내용이 비어있습니다.", NamedTextColor.RED));
         }
 
-        // 4. PlayerData 변환
+        // 4. Map 데이터를 PlayerData 객체로 변환
         PlayerData importedData = PlayerData.fromMap(uuid, map);
 
-        // 5. DB 저장 (PlayerProfileService의 saveToDb 접근이 protected이므로 public 메서드 혹은 우회
-        // 필요)
-        // 여기서는 PlayerProfileService에 강제 저장 메서드를 추가하거나 캐시를 통해 저장해야 함.
-        // 현재 구조상 PlayerProfileService.save(key, value) 메서드를 사용하는 것이 적절함.
-
-        try {
-            // 캐시 갱신 및 DB 저장 트리거
-            playerProfileService.save(uuid, importedData).join();
-            // join()을 사용하여 동기적으로 처리 (명령어 실행자에게 결과 즉시 반환을 위해) but should be careful on main
-            // thread if DB is slow.
-            // 하지만 import는 관리자 작업이므로 감수 가능, 혹은 CompletableFuture 반환으로 변경 가능.
-
-            // 캐시 무효화 (다음에 DB에서 다시 읽도록, 혹은 이미 갱신된 데이터를 사용하도록)
-            // 여기서는 save를 했으므로 캐시는 최신 상태임. 필요 시 invalidate 호출.
-
-            return Component.text("데이터 Import 및 DB 저장 완료: " + uuid, NamedTextColor.GREEN);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Component.text("Import 중 저장 오류 발생: " + e.getMessage(), NamedTextColor.RED);
-        }
+        // 5. DB 저장 및 캐시 갱신 (비동기)
+        return playerProfileService.save(uuid, importedData)
+                .thenApply(v -> (Component) Component.text("데이터 Import 및 DB 저장 완료: " + uuid, NamedTextColor.GREEN))
+                .exceptionally(e -> {
+                    e.printStackTrace();
+                    return (Component) Component.text("Import 중 저장 오류 발생: " + e.getMessage(), NamedTextColor.RED);
+                });
     }
 }

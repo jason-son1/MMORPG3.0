@@ -4,11 +4,22 @@ import com.antigravity.rpg.core.formula.ExpressionEngine;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * 엔티티의 최종 스탯을 계산하는 클래스입니다.
+ * 수식 계산 및 마인크래프트 기본 스탯과의 연동을 담당하며, 성능을 위해 틱 단위 캐싱을 수행합니다.
+ */
 @Singleton
 public class StatCalculator {
 
     private final StatRegistry statRegistry;
     private final ExpressionEngine expressionEngine;
+
+    // 틱 단위 캐시: Map<HolderUUID, Map<StatId, Value>>
+    private final Map<UUID, Map<String, Double>> tickCache = new ConcurrentHashMap<>();
 
     @Inject
     public StatCalculator(StatRegistry statRegistry, ExpressionEngine expressionEngine) {
@@ -16,14 +27,39 @@ public class StatCalculator {
         this.expressionEngine = expressionEngine;
     }
 
+    /**
+     * 대상의 최종 스탯 값을 계산합니다. (캐시 우선 확인)
+     * 
+     * @param holder 스탯 보유 대상
+     * @param statId 스탯 식별자
+     * @return 계산된 최종 값
+     */
     public double getStat(StatHolder holder, String statId) {
+        UUID holderId = getHolderId(holder);
+
+        // 1. 캐시 확인
+        if (holderId != null) {
+            Map<String, Double> holderCache = tickCache.get(holderId);
+            if (holderCache != null && holderCache.containsKey(statId)) {
+                return holderCache.get(statId);
+            }
+        }
+
+        // 2. 실제 계산 수행
+        double result = calculateStat(holder, statId);
+
+        // 3. 캐시에 저장
+        if (holderId != null) {
+            tickCache.computeIfAbsent(holderId, k -> new ConcurrentHashMap<>()).put(statId, result);
+        }
+
+        return result;
+    }
+
+    private double calculateStat(StatHolder holder, String statId) {
         StatDefinition def = statRegistry.getStat(statId).orElse(null);
         if (def == null) {
-            // 정의되지 않은 스탯은 단순 데이터 저장소 값으로 처리하거나 0 반환
-            // 여기서는 StatHolder의 raw 값을 시도해보고 없으면 0이라고 가정할 수는 없으므로(인터페이스 제약),
-            // holder가 스스로 처리할 수 있도록 해야 하지만,
-            // 순환 호출 구조상 holder.getStat이 이 메서드를 호출하는 구조라면 무한 루프 위험.
-            // 따라서 holder가 getRawStat을 제공해야 함.
+            // 정의되지 않은 스탯은 원본 데이터에서 조회
             if (holder instanceof PlayerDataFunc) {
                 return ((PlayerDataFunc) holder).getRawStat(statId);
             }
@@ -35,20 +71,13 @@ public class StatCalculator {
                 return expressionEngine.evaluate(def.getFormula(), holder);
 
             case NATIVE_ATTRIBUTE:
-                // Minecraft Attribute와 동기화된 값을 가져와야 함.
-                // 보통 NATIVE는 기본값 + 장비/버프 보정치.
-                // 여기서는 StatHolder가 직접 Attribute 값을 조회할 수 있다고 가정.
-                // 만약 holder가 Entity 기반이라면 실제 Attribute 값을, 아니면 raw 값을 반환.
+                // 마인크래프트 기본 속성(Attribute) 연동
                 if (holder instanceof NativeStatHolder) {
                     return ((NativeStatHolder) holder).getNativeAttributeValue(def.getNativeAttribute());
                 }
                 return getRawValue(holder, statId, def);
 
             case RESOURCE:
-                // 리소스는 보통 현재 값을 의미. 최대값은 별도 스탯(예: max_health)으로 정의됨.
-                // 단순히 저장된 값을 반환.
-                return getRawValue(holder, statId, def);
-
             case SIMPLE:
             case CHANCE:
             default:
@@ -63,11 +92,31 @@ public class StatCalculator {
         return def.getDefaultValue();
     }
 
-    // 내부 사용 인터페이스 (임시) - 나중에 메인 파일로 이동 가능
+    /**
+     * 매 틱마다 호출하여 캐시를 초기화해야 합니다.
+     */
+    public void clearCache() {
+        tickCache.clear();
+    }
+
+    private UUID getHolderId(StatHolder holder) {
+        if (holder instanceof com.antigravity.rpg.feature.player.PlayerData) {
+            return ((com.antigravity.rpg.feature.player.PlayerData) holder).getUuid();
+        }
+        // 다른 타입의 Holder가 추가될 경우 여기에 로직 확장 가능
+        return null;
+    }
+
+    /**
+     * 스탯 보유 대상이 원본 데이터를 제공하기 위한 인터페이스입니다.
+     */
     public interface PlayerDataFunc extends StatHolder {
         double getRawStat(String statId);
     }
 
+    /**
+     * 스탯 보유 대상이 마인크래프트 기본 속성을 제공하기 위한 인터페이스입니다.
+     */
     public interface NativeStatHolder extends StatHolder {
         double getNativeAttributeValue(String attributeName);
     }

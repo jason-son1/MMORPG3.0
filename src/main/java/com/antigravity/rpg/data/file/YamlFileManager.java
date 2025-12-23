@@ -12,7 +12,7 @@ import java.util.logging.Level;
 
 /**
  * 로컬 파일 시스템에서 플레이어 데이터를 관리하는 매니저입니다.
- * DB 데이터를 파일로 내보내거나, 파일 데이터를 읽어오는 역할을 합니다.
+ * DB 데이터를 파일로 내보내거나(Export), 파일 데이터를 DB로 불러올 때(Import) 사용됩니다.
  */
 public class YamlFileManager {
 
@@ -28,7 +28,7 @@ public class YamlFileManager {
     }
 
     /**
-     * PlayerData를 YAML 파일로 저장합니다 (Export).
+     * PlayerData를 YAML 파일로 저장합니다.
      * 
      * @param uuid 플레이어 UUID
      * @param data 저장할 PlayerData 객체
@@ -38,7 +38,7 @@ public class YamlFileManager {
         File file = new File(userdataFolder, uuid.toString() + ".yml");
         YamlConfiguration config = new YamlConfiguration();
 
-        // Map 변환 후 설정
+        // PlayerData를 Map으로 변환하여 YAML 설정에 추가
         Map<String, Object> map = data.toMap();
         for (Map.Entry<String, Object> entry : map.entrySet()) {
             config.set(entry.getKey(), entry.getValue());
@@ -46,16 +46,16 @@ public class YamlFileManager {
 
         try {
             config.save(file);
-            plugin.getLogger().info("[YamlFileManager] Exported data for " + uuid);
+            plugin.getLogger().info("[YamlFileManager] " + uuid + "의 데이터를 성공적으로 Export했습니다.");
             return true;
         } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "[YamlFileManager] Failed to save yaml for " + uuid, e);
+            plugin.getLogger().log(Level.SEVERE, "[YamlFileManager] " + uuid + "의 YAML 저장에 실패했습니다.", e);
             return false;
         }
     }
 
     /**
-     * YAML 파일에서 데이터를 로드합니다 (Import).
+     * 특정 플레이어의 YAML 데이터를 로드합니다.
      * 
      * @param uuid 플레이어 UUID
      * @return 로드된 데이터 Map, 파일이 없거나 실패 시 null
@@ -63,16 +63,17 @@ public class YamlFileManager {
     public Map<String, Object> loadFromYaml(UUID uuid) {
         File file = new File(userdataFolder, uuid.toString() + ".yml");
         if (!file.exists()) {
-            plugin.getLogger().warning("[YamlFileManager] File not found for " + uuid);
+            plugin.getLogger().warning("[YamlFileManager] " + uuid + "의 파일을 찾을 수 없습니다.");
             return null;
         }
 
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-        return config.getValues(true); // deep=true를 통해 중첩 키도 모두 가져옴 (단, 루트 레벨 처리가 더 깔끔할 수 있음)
+        // deep=true를 통해 하위 계층 데이터를 포함한 모든 값을 가져옵니다.
+        return config.getValues(true);
     }
 
     /**
-     * 파일 존재 여부 확인
+     * 해당 플레이어의 YAML 파일이 존재하는지 확인합니다.
      */
     public boolean hasFile(UUID uuid) {
         return new File(userdataFolder, uuid.toString() + ".yml").exists();

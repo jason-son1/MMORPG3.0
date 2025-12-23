@@ -24,8 +24,8 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 
 /**
- * 플레이어의 데이터(PlayerData)를 관리하는 서비스입니다.
- * JSON 직렬화를 통해 DB 유연성을 확보했습니다.
+ * 플레이어의 프로필 데이터(PlayerData)를 관리하는 서비스입니다.
+ * 데이터베이스 저장, 캐싱, 접속 시 데이터 로드 및 종료 시 저장을 담당합니다.
  */
 @Singleton
 public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerData> implements Service, Listener {
@@ -37,6 +37,7 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
 
     @Inject
     public PlayerProfileService(DatabaseService databaseService, JavaPlugin plugin, StatRegistry statRegistry) {
+        // 캐시 작업을 위한 전용 스레드 풀 생성
         super(Executors.newCachedThreadPool());
         this.databaseService = databaseService;
         this.plugin = plugin;
@@ -45,9 +46,11 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
 
     @Override
     public void onEnable() {
+        // 이벤트 리스너 등록
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
-        plugin.getLogger().info("[PlayerProfileService] Listeners registered. (플레이어 리스너 등록됨)");
+        plugin.getLogger().info("[PlayerProfileService] 플레이어 이벤트 리스너가 등록되었습니다.");
 
+        // 서버가 켜져 있는 도중에 로드된 경우 현재 접속자 데이터 강제 로드
         for (Player p : plugin.getServer().getOnlinePlayers()) {
             loadProfileInternal(p.getUniqueId());
         }
@@ -55,6 +58,7 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
 
     @Override
     public void onDisable() {
+        // 플러그인 종료 시 데이터 유실 방지를 위해 모든 데이터를 저장합니다.
         for (Player p : plugin.getServer().getOnlinePlayers()) {
             save(p.getUniqueId(), find(p.getUniqueId()).getNow(null));
         }
@@ -67,15 +71,17 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+        // 접속 시 데이터 비동기 로드 시작
         loadProfileInternal(event.getPlayer().getUniqueId());
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
+        // 퇴장 시 데이터 저장 후 캐시에서 해제
         find(uuid).thenAccept(data -> {
             if (data != null) {
-                save(uuid, data).thenRun(() -> delete(uuid));
+                save(uuid, data).thenRun(() -> unregister(uuid));
             }
         });
     }
@@ -84,6 +90,9 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
         find(uuid);
     }
 
+    /**
+     * DB에서 JSON 형태의 플레이어 데이터를 불러와 객체로 변환합니다.
+     */
     @Override
     protected PlayerData loadFromDb(UUID key) throws Exception {
         PlayerData data = null;
@@ -105,14 +114,18 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
             }
         }
 
+        // 신규 플레이어인 경우 기본 데이터 생성
         if (data == null) {
-            data = new PlayerData(key); // New Profile
+            data = new PlayerData(key);
         }
 
         data.setLoaded(true);
         return data;
     }
 
+    /**
+     * PlayerData 객체를 JSON으로 직렬화하여 DB에 저장합니다 (UPSERT).
+     */
     @Override
     protected void saveToDb(UUID key, PlayerData value) throws Exception {
         String upsertSql = "INSERT INTO player_data_v2 (uuid, json_data) VALUES (?, ?) " +
@@ -121,7 +134,7 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
         try (Connection conn = databaseService.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(upsertSql)) {
 
-            // Serialize to JSON
+            // JSON 직렬화
             Map<String, Object> map = value.toMap();
             String json = gson.toJson(map);
 
@@ -131,6 +144,9 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
         }
     }
 
+    /**
+     * DB에서 해당 플레이어 데이터를 영구히 제거합니다.
+     */
     @Override
     protected void deleteFromDb(UUID key) throws Exception {
         String sql = "DELETE FROM player_data_v2 WHERE uuid = ?";
@@ -141,6 +157,9 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
         }
     }
 
+    /**
+     * 특정 플레이어의 ECS 컴포넌트를 가져옵니다.
+     */
     public <T> T getComponent(UUID uuid, Class<T> componentClass) {
         PlayerData data = find(uuid).getNow(null);
         if (data == null) {

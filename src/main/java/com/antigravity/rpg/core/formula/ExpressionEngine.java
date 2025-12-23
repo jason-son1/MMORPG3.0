@@ -6,18 +6,24 @@ import com.google.inject.Singleton;
 import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * 수식 계산을 담당하는 엔진입니다.
- * exp4j 라이브러리를 사용합니다.
+ * exp4j 라이브러리를 사용하며, 성능 향상을 위해 컴파일된 수식을 캐싱합니다.
  */
 @Singleton
 public class ExpressionEngine {
 
-    private final PlaceholderService placeholderService;
+    // 컴파일된 수식을 저장하는 캐시 (성능 최적화)
+    private final Map<String, Expression> expressionCache = new ConcurrentHashMap<>();
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{([a-zA-Z0-9_]+)\\}");
 
     @Inject
-    public ExpressionEngine(PlaceholderService placeholderService) {
-        this.placeholderService = placeholderService;
+    public ExpressionEngine() {
     }
 
     /**
@@ -32,16 +38,42 @@ public class ExpressionEngine {
             return 0.0;
 
         try {
-            // 1. 플레이스홀더 치환
-            String parsedFormula = placeholderService.parse(formula, holder);
+            // 1. 캐시에서 컴파일된 수식 가져오기 또는 생성
+            Expression expression = expressionCache.computeIfAbsent(formula, f -> {
+                // 수식에서 변수({key}) 추출
+                Matcher matcher = PLACEHOLDER_PATTERN.matcher(f);
+                ExpressionBuilder builder = new ExpressionBuilder(f.replaceAll("\\{", "").replaceAll("\\}", ""));
 
-            // 2. 수식 계산
-            Expression expression = new ExpressionBuilder(parsedFormula).build();
+                java.util.Set<String> variables = new java.util.HashSet<>();
+                while (matcher.find()) {
+                    variables.add(matcher.group(1));
+                }
+
+                if (!variables.isEmpty()) {
+                    builder.variables(variables);
+                }
+                return builder.build();
+            });
+
+            // 2. 변수 값 설정
+            for (String var : expression.getVariableNames()) {
+                double val = (holder != null) ? holder.getStat(var) : 0.0;
+                expression.setVariable(var, val);
+            }
+
+            // 3. 계산 결과 반환
             return expression.evaluate();
         } catch (Exception e) {
-            // 수식 오류 시 0 반환 및 로그 (실제로는 로거 사용 권장)
+            // 수식 오류 시 0 반환 및 에러 출력
             e.printStackTrace();
             return 0.0;
         }
+    }
+
+    /**
+     * 캐시된 수식을 모두 삭제합니다. (설정 리로드 시 호출 권장)
+     */
+    public void clearCache() {
+        expressionCache.clear();
     }
 }

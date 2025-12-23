@@ -17,8 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.antigravity.rpg.core.config.ConfigDirectoryLoader;
 
 /**
- * 스킬 관리자 (Skill Manager)
- * skills.yml 파일을 읽어 스킬 정보를 로드하고 관리합니다.
+ * 스킬(Skill) 정보를 로드하고 관리하는 서비스입니다.
+ * 'skills' 폴더 내의 모든 설정을 읽어 스킬의 이름, 재사용 대기시간, 소모 자원 등을 정의합니다.
  */
 @Singleton
 public class SkillManager implements Service {
@@ -50,10 +50,16 @@ public class SkillManager implements Service {
         return "SkillManager";
     }
 
+    /**
+     * 스킬 설정을 다시 로드합니다.
+     */
     public void reload() {
         loadSkills();
     }
 
+    /**
+     * 'skills' 디렉토리를 탐색하여 모든 스킬 설정을 로드합니다.
+     */
     private void loadSkills() {
         skills.clear();
         File skillsDir = new File(plugin.getDataFolder(), "skills");
@@ -61,6 +67,7 @@ public class SkillManager implements Service {
             skillsDir.mkdirs();
         }
 
+        // ConfigDirectoryLoader를 통해 디렉토리 내 모든 YAML 파일을 로드합니다.
         Map<String, YamlConfiguration> configs = configLoader.loadAll(skillsDir);
         int count = 0;
 
@@ -71,16 +78,18 @@ public class SkillManager implements Service {
                     continue;
 
                 String name = s.getString("name", id);
-                long cooldown = s.getLong("cooldown", 0) * 1000;
+                long cooldown = s.getLong("cooldown", 0) * 1000; // 초 단위를 밀리초로 변환
                 double mana = s.getDouble("mana_cost", 0);
                 double stamina = s.getDouble("stamina_cost", 0);
 
                 SkillDefinition skill = new SkillDefinition(id, name, cooldown, mana, stamina);
 
+                // 트리거 및 액션 파싱
                 List<String> actions = s.getStringList("actions");
                 List<String> conditions = s.getStringList("conditions");
 
                 if (!actions.isEmpty() || !conditions.isEmpty()) {
+                    // TriggerService를 통해 문자열 리스트를 트리거 객체로 변환 (레거시 지원 포함)
                     Trigger trigger = triggerService.parseTrigger(conditions, actions);
                     skill.addTrigger(trigger);
                 }
@@ -89,9 +98,12 @@ public class SkillManager implements Service {
                 count++;
             }
         }
-        plugin.getLogger().info(count + " skills loaded from skills/ directory.");
+        plugin.getLogger().info("총 " + count + "개의 스킬이 skills/ 디렉토리에서 로드되었습니다.");
     }
 
+    /**
+     * 특정 식별자에 해당하는 스킬 정보를 가져옵니다.
+     */
     public SkillDefinition getSkill(String id) {
         return skills.get(id);
     }
