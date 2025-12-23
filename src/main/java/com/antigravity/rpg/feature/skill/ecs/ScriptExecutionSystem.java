@@ -70,73 +70,77 @@ public class ScriptExecutionSystem implements System {
                     // [NEW] FlowStep 처리
                     FlowStep step = script.getCurrentFlowStep();
                     if (step != null) {
-                        // 1. Condition 검사
-                        if (step.getConditionConfigs() != null
-                                && !evaluateConditions(ctx, step.getConditionConfigs())) {
-                            script.next();
-                            continue;
-                        }
-
-                        // 2. Targeting 업데이트
-                        if (step.getTargeterConfig() != null) {
-                            Targeter targeter = targeterFactory.create(step.getTargeterConfig());
-                            if (targeter != null) {
-                                ctx.setTargets(targeter.getTargetEntities(ctx));
+                        try {
+                            // 1. Pre-Conditions 검사 (Caster/Global)
+                            // 타겟팅 전이므로 타겟 관련 조건은 무시되거나 캐스터 기준으로 체크됨
+                            if (step.getConditionConfigs() != null
+                                    && !evaluateConditions(ctx, step.getConditionConfigs(), false)) {
+                                script.next();
+                                continue;
                             }
-                        }
 
-                        // 3. Effects 재생
-                        if (step.getEffectConfigs() != null) {
-                            for (Map<String, Object> eCfg : step.getEffectConfigs()) {
-                                Effect effect = effectFactory.create(eCfg);
-                                if (effect != null) {
-                                    // 타겟이 있으면 모든 타겟에 대해 재생, 없으면 시전자 위치
-                                    if (ctx.getTargets().isEmpty()) {
-                                        effect.play(ctx.getOriginLocation(), null, ctx);
-                                    } else {
-                                        for (Entity target : ctx.getTargets()) {
-                                            effect.play(null, target, ctx);
-                                        }
+                            // 2. Targeting 업데이트
+                            if (step.getTargeterConfig() != null) {
+                                Targeter targeter = targeterFactory.create(step.getTargeterConfig());
+                                if (targeter != null) {
+                                    ctx.setTargets(targeter.getTargetEntities(ctx));
+                                }
+                            }
+
+                            // 3. Post-Conditions 검사 (Target Filter)
+                            if (step.getConditionConfigs() != null && !ctx.getTargets().isEmpty()) {
+                                filterTargets(ctx, step.getConditionConfigs());
+                                if (ctx.getTargets().isEmpty()) {
+                                    // 타겟 필터링 후 타겟이 없으면 스킵? 혹은 타겟 없음으로 진행?
+                                    // 보통 타겟이 없으면 이펙트/메카닉이 의미가 없을 수 있음.
+                                    // 하지만 이펙트는 시전자 위치에서 나갈 수도 있으므로 진행.
+                                }
+                            }
+
+                            // 4. Effects 재생
+                            playEffects(step.getEffectConfigs(), ctx);
+
+                            // 5. Mechanics 실행
+                            if (step.getMechanicConfigs() != null) {
+                                for (SkillDefinition.MechanicConfig mCfg : step.getMechanicConfigs()) {
+                                    Mechanic mechanic = mechanicFactory.create(mCfg.getType());
+                                    if (mechanic != null) {
+                                        mechanic.cast(ctx, mCfg.getConfig());
                                     }
                                 }
                             }
-                        }
 
-                        // 4. Mechanics 실행
-                        if (step.getMechanicConfigs() != null) {
-                            for (SkillDefinition.MechanicConfig mCfg : step.getMechanicConfigs()) {
-                                Mechanic mechanic = mechanicFactory.create(mCfg.getType());
-                                if (mechanic != null) {
-                                    mechanic.cast(ctx, mCfg.getConfig());
-                                }
+                            // 6. Delay 등록
+                            if (step.getDelay() > 0) {
+                                script.setDelayTicks(step.getDelay());
+                                script.next();
+                                break;
                             }
-                        }
-
-                        // 5. Delay 등록
-                        if (step.getDelay() > 0) {
-                            script.setDelayTicks(step.getDelay());
-                            script.next();
-                            break;
+                        } catch (Exception e) {
+                            log.error("Error executing Script FlowStep: {}", e.getMessage(), e);
                         }
 
                         script.next();
                         continue;
                     }
 
-                    // [Legacy] MechanicConfig 처리
+                    // [Legacy/Direct] MechanicConfig 처리
+                    // MechanicConfig 자체가 하나의 Step처럼 동작
                     SkillDefinition.MechanicConfig config = script.getCurrentMechanic();
                     if (config != null) {
                         Map<String, Object> cfg = config.getConfig();
-                        // ... (기존 레거시 로직 동일하게 유지)
+
+                        // 1. Pre-Conditions (Global)
                         if (cfg.containsKey("conditions")) {
                             @SuppressWarnings("unchecked")
                             List<Map<String, Object>> conditions = (List<Map<String, Object>>) cfg.get("conditions");
-                            if (!evaluateConditions(ctx, conditions)) {
+                            if (!evaluateConditions(ctx, conditions, false)) {
                                 script.next();
                                 continue;
                             }
                         }
 
+                        // (DELAY 메카닉 특수 처리)
                         if ("DELAY".equalsIgnoreCase(config.getType())) {
                             int ticks = ((Number) cfg.getOrDefault("ticks", 0)).intValue();
                             script.setDelayTicks(ticks);
@@ -144,19 +148,38 @@ public class ScriptExecutionSystem implements System {
                             break;
                         }
 
+                        // 2. Targeting
                         if (cfg.containsKey("target")) {
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> targetCfg = (Map<String, Object>) cfg.get("target");
-                            Targeter targeter = targeterFactory.create(targetCfg);
-                            if (targeter != null) {
-                                ctx.setTargets(targeter.getTargetEntities(ctx));
+                            Object tObj = cfg.get("target");
+                            if (tObj instanceof List && !((List<?>) tObj).isEmpty()) {
+                                tObj = ((List<?>) tObj).get(0);
+                            }
+
+                            if (tObj instanceof Map) {
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> targetCfg = (Map<String, Object>) tObj;
+                                Targeter targeter = targeterFactory.create(targetCfg);
+                                if (targeter != null) {
+                                    ctx.setTargets(targeter.getTargetEntities(ctx));
+                                }
                             }
                         }
 
+                        // 3. Post-Condition (Filter)
+                        if (cfg.containsKey("conditions")) {
+                            @SuppressWarnings("unchecked")
+                            List<Map<String, Object>> conditions = (List<Map<String, Object>>) cfg.get("conditions");
+                            filterTargets(ctx, conditions);
+                        }
+
+                        // 4. Mechanic 실행
                         Mechanic mechanic = mechanicFactory.create(config.getType());
                         if (mechanic != null) {
                             mechanic.cast(ctx, cfg);
                         }
+
+                        // (On-Hit 등은 Mechanic 내부에서 처리 or 리턴값으로 처리?)
+                        // 현재 구조에서는 Mechanic 내부에서 해결하거나 ScriptRunner.runSubScript 호출
 
                         script.next();
                     }
@@ -170,18 +193,56 @@ public class ScriptExecutionSystem implements System {
         }
     }
 
-    private boolean evaluateConditions(SkillCastContext ctx, List<Map<String, Object>> conditions) {
+    private boolean evaluateConditions(SkillCastContext ctx, List<Map<String, Object>> conditions, boolean perTarget) {
+        if (perTarget)
+            return true; // 이 메서드는 Global/Caster 체크용
+
         for (Map<String, Object> condCfg : conditions) {
             String type = (String) condCfg.get("type");
             Condition condition = conditionFactory.create(type, condCfg);
             if (condition != null) {
-                // 타겟 없이 시전자 기준으로 조건 평가 시 target은 null 전달
+                // 타겟 없이 시전자 기준으로 조건 평가
                 if (!condition.evaluate(ctx, null)) {
                     return false;
                 }
             }
         }
         return true;
+    }
+
+    private void filterTargets(SkillCastContext ctx, List<Map<String, Object>> conditions) {
+        if (ctx.getTargets().isEmpty())
+            return;
+
+        ctx.getTargets().removeIf(target -> {
+            for (Map<String, Object> condCfg : conditions) {
+                String type = (String) condCfg.get("type");
+                Condition condition = conditionFactory.create(type, condCfg);
+                if (condition != null) {
+                    if (!condition.evaluate(ctx, target)) {
+                        return true; // 조건 불만족 시 제거
+                    }
+                }
+            }
+            return false;
+        });
+    }
+
+    private void playEffects(List<Map<String, Object>> effectConfigs, SkillCastContext ctx) {
+        if (effectConfigs == null)
+            return;
+        for (Map<String, Object> eCfg : effectConfigs) {
+            Effect effect = effectFactory.create(eCfg);
+            if (effect != null) {
+                if (ctx.getTargets().isEmpty()) {
+                    effect.play(ctx.getOriginLocation(), null, ctx);
+                } else {
+                    for (Entity target : ctx.getTargets()) {
+                        effect.play(null, target, ctx);
+                    }
+                }
+            }
+        }
     }
 
     @Override

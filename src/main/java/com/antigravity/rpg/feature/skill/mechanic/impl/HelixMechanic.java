@@ -1,37 +1,49 @@
 package com.antigravity.rpg.feature.skill.mechanic.impl;
 
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
+import com.antigravity.rpg.feature.skill.effect.Effect;
+import com.antigravity.rpg.feature.skill.effect.EffectFactory;
 import com.antigravity.rpg.feature.skill.mechanic.Mechanic;
+import com.google.inject.Inject;
 import org.bukkit.Location;
-import org.bukkit.Particle;
-import org.bukkit.entity.Entity;
 
 import java.util.Map;
 
 /**
- * 타겟 주변에 나선형 파티클 효과를 생성하는 메카닉입니다.
+ * 나선형(Helix) 패턴으로 이펙트를 재생하는 메카닉입니다.
  */
 public class HelixMechanic implements Mechanic {
 
+    private final EffectFactory effectFactory;
+
+    @Inject
+    public HelixMechanic(EffectFactory effectFactory) {
+        this.effectFactory = effectFactory;
+    }
+
     @Override
     public void cast(SkillCastContext ctx, Map<String, Object> config) {
-        double radius = ((Number) config.getOrDefault("radius", 2.0)).doubleValue();
-        double height = ((Number) config.getOrDefault("height", 3.0)).doubleValue();
-        int particles = ((Number) config.getOrDefault("particles", 50)).intValue();
+        double radius = ((Number) config.getOrDefault("radius", 3.0)).doubleValue();
+        double height = ((Number) config.getOrDefault("height", 2.0)).doubleValue();
+        double step = ((Number) config.getOrDefault("step", 0.5)).doubleValue();
 
-        for (Entity target : ctx.getTargets()) {
-            Location loc = target.getLocation();
-            for (int i = 0; i < particles; i++) {
-                double ratio = (double) i / particles;
-                double angle = ratio * Math.PI * 4; // 2바퀴
-                double x = Math.cos(angle) * radius;
-                double z = Math.sin(angle) * radius;
-                double y = ratio * height;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> effectConfig = (Map<String, Object>) config.get("effect");
+        Effect effect = effectFactory.create(effectConfig);
 
-                loc.add(x, y, z);
-                loc.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, loc, 1, 0, 0, 0, 0);
-                loc.subtract(x, y, z);
-            }
+        if (effect == null)
+            return;
+
+        Location center = ctx.getOriginLocation();
+
+        // 나선형 계산 및 이펙트 재생
+        for (double y = 0; y <= height; y += step) {
+            double angle = y * 2.0 * Math.PI; // 간단한 회전
+            double x = Math.cos(angle) * radius;
+            double z = Math.sin(angle) * radius;
+
+            Location point = center.clone().add(x, y, z);
+            effect.play(point, null, ctx);
         }
     }
 }

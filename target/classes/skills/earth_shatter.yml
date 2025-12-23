@@ -1,0 +1,59 @@
+id: earth_shatter
+name: "대지 파괴"
+description:
+  - "&7주변의 적들을 강타하여"
+  - "&c엄청난 피해&7를 입힙니다."
+
+requirements:
+  cooldown: 30.0
+  resource:
+    type: MANA
+    amount: 100
+  item:
+    material: NETHERITE_AXE
+    slot: HAND
+
+mechanics:
+  - type: HELIX
+    radius: 3.0
+    height: 2.0
+    step: 0.5
+    effect:
+      type: X_PARTICLE
+      particle: CRIT
+      amount: 10
+      speed: 0.1
+
+  - type: EFFECT
+    async: true
+    effect:
+      type: MODEL_ENGINE
+      model-id: "earth_crack_vfx"
+      state: "spawn"
+      duration: 60
+
+  - type: SOUND
+    sound: ENTITY_WITHER_BREAK_BLOCK
+    volume: 2.0
+    pitch: 0.5
+
+  - type: DAMAGE
+    delay: 10
+    target:
+      - type: RADIUS
+        range: 8.0
+    conditions:
+      - type: MYTHIC_MOB
+        faction: "Monster"
+      - type: HEALTH
+        min: 1
+        percentage: false
+    formula: "damage * 2.5 + (strength * 0.5)"
+    element: EARTH
+    on-hit:
+      - type: EFFECT
+        effect:
+          type: X_PARTICLE
+          particle: BLOCK_CRACK
+          material: DIRT
+          count: 30

@@ -12,14 +12,30 @@ import java.util.Map;
  */
 public class HealAction implements Action {
 
-    private double amount;
+    private String amountFormula;
 
     @Override
     public void execute(TriggerContext context) {
         if (!(context.getTarget() instanceof LivingEntity))
             return;
 
-        LivingEntity target = (LivingEntity) context.getTarget();
+        processHeal((LivingEntity) context.getTarget(), amountFormula);
+    }
+
+    /**
+     * 실제 힐 처리 로직을 수행합니다.
+     * 
+     * @param target  대상
+     * @param formula 힐량 공식 또는 값
+     */
+    public void processHeal(LivingEntity target, String formula) {
+        double amount = 0;
+        try {
+            amount = Double.parseDouble(formula);
+        } catch (NumberFormatException e) {
+            amount = 5.0; // 기본값
+        }
+
         double maxHealth = target.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
         double newHealth = Math.min(maxHealth, target.getHealth() + amount);
 
@@ -28,8 +44,7 @@ public class HealAction implements Action {
 
     @Override
     public void load(Map<String, Object> config) {
-        if (config.containsKey("amount")) {
-            this.amount = ((Number) config.get("amount")).doubleValue();
-        }
+        Object val = config.get("amount");
+        this.amountFormula = val != null ? val.toString() : "5.0";
     }
 }

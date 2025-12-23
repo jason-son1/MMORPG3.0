@@ -1,0 +1,25 @@
+id: holy_aura
+name: "성스러운 오라"
+
+requirements:
+  class: "PRIEST"
+
+mechanics:
+  - type: LOOP
+    iterations: 10
+    interval: 100
+
+    mechanics:
+      - type: HEAL
+        target:
+          - type: RADIUS
+            range: 20.0
+        conditions:
+          - type: PAPI
+            placeholder: "%mmorpg_party_id%"
+            value: "%caster_party_id%"
+        amount: "magic_damage * 0.2"
+        on-cast:
+          - type: SOUND
+            sound: BLOCK_NOTE_BLOCK_BELL
+            pitch: 2.0

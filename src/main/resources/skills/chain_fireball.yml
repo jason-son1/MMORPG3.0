@@ -1,0 +1,40 @@
+id: chain_fireball
+name: "연쇄 화염구"
+
+requirements:
+  cooldown: 5.0
+  resource:
+    type: STAMINA
+    amount: 20
+
+mechanics:
+  - type: PROJECTILE
+    projectile-type: ARROW
+    velocity: 2.0
+    gravity: true
+
+    on-tick:
+      - type: EFFECT
+        effect:
+          type: X_PARTICLE
+          particle: FLAME
+          amount: 2
+
+    on-hit:
+      - type: DAMAGE
+        target:
+          - type: SPHERE
+            radius: 4.0
+        formula: "damage * 1.2"
+        element: FIRE
+
+      - type: CHANCE
+        chance: 0.5
+        mechanics:
+          - type: APPLY_TAG
+            tag: "BURN"
+            duration: 100
+
+      - type: LUA
+        script: "scripts/skill_scripts/calculate_meteor_damage.lua"
+        function: "onExplode"

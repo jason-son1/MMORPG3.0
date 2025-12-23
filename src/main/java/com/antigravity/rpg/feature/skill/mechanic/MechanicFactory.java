@@ -30,6 +30,7 @@ public class MechanicFactory {
         registry.put("SLASH", SlashMechanic.class);
         registry.put("CHANCE", ChanceMechanic.class);
         registry.put("LOOP", LoopMechanic.class);
+        registry.put("EFFECT", EffectMechanic.class);
     }
 
     public Mechanic create(String type) {
