@@ -113,6 +113,10 @@ public class AntiGravityPlugin extends JavaPlugin {
                                         injector.getInstance(
                                                         com.antigravity.rpg.core.engine.listener.EquipmentListener.class),
                                         this);
+                        getServer().getPluginManager().registerEvents(
+                                        injector.getInstance(
+                                                        com.antigravity.rpg.core.engine.listener.SkillTreeListener.class),
+                                        this);
 
                         // [NEW] Universal Event Listener 등록
                         getServer().getPluginManager().registerEvents(
@@ -142,6 +146,11 @@ public class AntiGravityPlugin extends JavaPlugin {
                                                                                 com.antigravity.rpg.feature.classes.ClassRegistry.class),
                                                                 injector.getInstance(
                                                                                 com.antigravity.rpg.core.engine.StatRegistry.class)));
+                        }
+
+                        if (getCommand("skilltree") != null) {
+                                getCommand("skilltree").setExecutor(injector.getInstance(
+                                                com.antigravity.rpg.command.player.SkillTreeCommand.class));
                         }
 
                 } catch (Exception e) {

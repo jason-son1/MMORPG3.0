@@ -1,11 +1,8 @@
 package com.antigravity.rpg.feature.player;
 
 import com.antigravity.rpg.AntiGravityPlugin;
-import com.antigravity.rpg.feature.classes.ClassDefinition;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 /**
@@ -33,41 +30,40 @@ public class ResourceRegenTask extends BukkitRunnable {
 
     private void processRegen(PlayerData data) {
         ResourcePool pool = data.getResources();
-        String classId = data.getClassId();
+        pool.updateCombatState(); // 전투 상태 갱신
 
+        String classId = data.getClassId();
         if (classId == null || classId.isEmpty())
             return;
 
         PlayerData.getClassRegistry().getClass(classId).ifPresent(def -> {
-            ClassDefinition.ResourceType type = def.getAttributes().getResourceType();
+            com.antigravity.rpg.feature.classes.component.ResourceSettings settings = def.getResourceSettings();
+            if (settings != null) {
+                com.antigravity.rpg.feature.classes.component.ResourceSettings.ResourceType type = settings.getType();
+                com.antigravity.rpg.feature.classes.component.ResourceSettings.RegenMode mode = settings.getRegenMode();
 
-            // 1. 마나 회복 (MANA)
-            if (type == ClassDefinition.ResourceType.MANA) {
-                double maxMana = data.getStat("MAX_MANA", 100.0);
-                double regen = data.getStat("MANA_REGEN", 5.0);
-                pool.recover("MANA", regen, maxMana);
-            }
+                String rTypeStr = type.name();
+                double maxResource = data.getStat("MAX_" + rTypeStr, settings.getMax());
 
-            // 2. 기력 회복 (ENERGY)
-            if (type == ClassDefinition.ResourceType.ENERGY) {
-                double maxEnergy = data.getStat("MAX_ENERGY", 100.0);
-                double regen = data.getStat("ENERGY_REGEN", 10.0);
-                pool.recover("ENERGY", regen, maxEnergy);
-            }
-
-            // 3. 분노 감소/회복 (RAGE) - 일반적으로 비전투 시 감소
-            if (type == ClassDefinition.ResourceType.RAGE) {
-                if (!pool.isInCombat()) {
-                    pool.consume("RAGE", 2.0); // 비전투 시 분노 감소
+                // 1. 재생 모드에 따른 처리
+                if (mode == com.antigravity.rpg.feature.classes.component.ResourceSettings.RegenMode.PASSIVE) {
+                    // 패시브 회복: 기본 설정값 + 스탯 보너스(나중에 추가 가능)
+                    double regen = settings.getRegenAmount();
+                    pool.recover(rTypeStr, regen, maxResource);
+                } else if (mode == com.antigravity.rpg.feature.classes.component.ResourceSettings.RegenMode.DECAY) {
+                    // 비전투 시 감소
+                    if (!pool.isInCombat()) {
+                        double decay = settings.getDecayAmount();
+                        pool.decay(rTypeStr, decay);
+                    }
                 }
             }
 
-            // 공통: 스태미나 회복
-            double maxStam = data.getStat("MAX_STAMINA", 100.0);
+            // 2. 공통: 스태미나 회복 (스태미나는 보조 자원이므로 항상 패시브 회복)
+            double maxStamina = data.getStat("MAX_STAMINA", 100.0);
             double stamRegen = data.getStat("STAMINA_REGEN", 10.0);
-            pool.recover("STAMINA", stamRegen, maxStam);
+            pool.recover("STAMINA", stamRegen, maxStamina);
 
-            // 데이터 변경됨을 표시
             data.markDirty();
         });
     }

@@ -40,6 +40,7 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
         this.data.put("professions", new ConcurrentHashMap<String, Integer>());
         this.data.put("skillCooldowns", new ConcurrentHashMap<String, Number>());
         this.data.put("savedStats", new ConcurrentHashMap<String, Double>());
+        this.data.put("skillPoints", 0);
 
         this.resources = new ResourcePool();
         this.equipment = new ConcurrentHashMap<>();
@@ -98,6 +99,16 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
         markDirty();
     }
 
+    public int getSkillPoints() {
+        Number n = (Number) data.getOrDefault("skillPoints", 0);
+        return n.intValue();
+    }
+
+    public void setSkillPoints(int points) {
+        data.put("skillPoints", points);
+        markDirty();
+    }
+
     public double getExperience() {
         Number n = (Number) data.getOrDefault("experience", 0.0);
         return n.doubleValue();
@@ -115,6 +126,19 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
     @SuppressWarnings("unchecked")
     public Map<String, Integer> getSkillLevels() {
         return (Map<String, Integer>) data.get("skillLevels");
+    }
+
+    public int getSkillLevel(String skillId) {
+        Map<String, Integer> levels = getSkillLevels();
+        return levels != null ? levels.getOrDefault(skillId, 0) : 0;
+    }
+
+    public void setSkillLevel(String skillId, int level) {
+        Map<String, Integer> levels = getSkillLevels();
+        if (levels != null) {
+            levels.put(skillId, level);
+            markDirty();
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -186,7 +210,6 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
     /**
      * Map으로부터 데이터를 복원합니다 (역직렬화 지원).
      */
-    @SuppressWarnings("unchecked")
     public static PlayerData fromMap(UUID uuid, Map<String, Object> map) {
         PlayerData pd = new PlayerData(uuid);
         if (map != null) {
@@ -373,17 +396,24 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
 
         classRegistry.getClass(cId).ifPresent(def -> {
             if (def.getEquipment() != null && def.getEquipment().getMasteryBonus() != null) {
-                for (com.antigravity.rpg.feature.classes.ClassDefinition.MasteryBonus bonus : def.getEquipment()
+                for (com.antigravity.rpg.feature.classes.component.EquipmentRules.MasteryBonus bonus : def
+                        .getEquipment()
                         .getMasteryBonus()) {
                     if (conditionManager.check(this, bonus.getCondition(), player)) {
                         // 조건 충족 시 보너스 적용
                         if (bonus.getStats() != null) {
-                            bonus.getStats().forEach(this::addModifier);
+                            bonus.getStats().forEach((statId, value) -> {
+                                if (value != null)
+                                    addModifier(statId, value);
+                            });
                         }
                     } else {
                         // 조건 미충족 시 보너스 제거
                         if (bonus.getStats() != null) {
-                            bonus.getStats().forEach(this::removeModifier);
+                            bonus.getStats().forEach((statId, value) -> {
+                                if (value != null)
+                                    removeModifier(statId, value);
+                            });
                         }
                     }
                 }

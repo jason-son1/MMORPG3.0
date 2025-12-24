@@ -1,0 +1,17 @@
+# MMORPG 3.0 글로벌 직업 기본 설정
+key: "_global_defaults"
+
+resource-settings:
+  type: MANA
+  max: 100.0
+  regen-mode: PASSIVE
+  regen-amount: 5.0
+
+# 스태미나는 모든 직업 공통 (PlayerData에서 기본 처리되지만 명시 가능)
+# stamina-settings: ... 
+
+gui-display:
+  icon: BOOK
+  custom-model-data: 0
+  description:
+    - "&7이것은 기본 설정입니다."

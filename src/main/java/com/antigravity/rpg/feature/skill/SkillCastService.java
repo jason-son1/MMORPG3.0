@@ -77,13 +77,15 @@ public class SkillCastService implements Service {
                 return;
             var cDef = classDefOpt.get();
 
-            // 해당 직업이 배운 스킬인지 확인 (active 스킬 목록 검색)
-            boolean hasSkill = false;
+            // 해당 직업의 스킬인지 확인
+            boolean isClassSkill = false;
+
+            // 1) 레거시 스킬 목록 확인 (기본 제공 스킬 등)
             if (cDef.getSkills() != null && cDef.getSkills().getActive() != null) {
                 for (var s : cDef.getSkills().getActive()) {
                     if (s.getId().equalsIgnoreCase(skillId)) {
                         if (data.getLevel() >= s.getUnlockLevel()) {
-                            hasSkill = true;
+                            isClassSkill = true;
                         } else {
                             player.sendMessage(
                                     Component.text("레벨이 부족하여 스킬을 사용할 수 없습니다. (필요 레벨: " + s.getUnlockLevel() + ")",
@@ -95,7 +97,20 @@ public class SkillCastService implements Service {
                 }
             }
 
-            if (!hasSkill) {
+            // 2) 신규 스킬 트리 확인 (학습된 스킬 위주)
+            if (!isClassSkill && cDef.getSkillTree() != null) {
+                var node = cDef.getSkillTree().getNode(skillId);
+                if (node != null) {
+                    if (data.getSkillLevel(skillId) > 0) {
+                        isClassSkill = true;
+                    } else {
+                        player.sendMessage(Component.text("스킬을 아직 배우지 않았습니다.", NamedTextColor.RED));
+                        return;
+                    }
+                }
+            }
+
+            if (!isClassSkill) {
                 player.sendMessage(Component.text("현재 직업에서 사용할 수 없는 스킬입니다.", NamedTextColor.RED));
                 return;
             }
@@ -111,8 +126,9 @@ public class SkillCastService implements Service {
 
             // 3. 소모 자원 확인 (ResourceType에 따라 분기)
             com.antigravity.rpg.feature.player.ResourcePool pool = data.getResources();
-            com.antigravity.rpg.feature.classes.ClassDefinition.ResourceType rType = cDef.getAttributes()
-                    .getResourceType();
+            com.antigravity.rpg.feature.classes.component.ResourceSettings.ResourceType rType = (cDef
+                    .getResourceSettings() != null) ? cDef.getResourceSettings().getType()
+                            : com.antigravity.rpg.feature.classes.component.ResourceSettings.ResourceType.NONE;
 
             double cost = skill.getManaCost(); // 기본적으로 mana/cost 필드를 범용 자원량으로 사용
             if (cost > 0) {

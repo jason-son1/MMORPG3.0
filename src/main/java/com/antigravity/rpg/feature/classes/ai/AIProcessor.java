@@ -1,6 +1,5 @@
 package com.antigravity.rpg.feature.classes.ai;
 
-import com.antigravity.rpg.feature.classes.ClassDefinition;
 import com.google.inject.Singleton;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -24,7 +23,8 @@ public class AIProcessor {
      * @param range    탐색 범위
      * @return 선택된 타겟
      */
-    public Optional<LivingEntity> selectTarget(LivingEntity source, ClassDefinition.TargetPriority priority,
+    public Optional<LivingEntity> selectTarget(LivingEntity source,
+            com.antigravity.rpg.feature.classes.component.AIBehavior.TargetPriority priority,
             double range) {
         List<Entity> nearby = source.getNearbyEntities(range, range, range);
 
@@ -36,7 +36,8 @@ public class AIProcessor {
                 .min(getComparator(source, priority));
     }
 
-    private Comparator<LivingEntity> getComparator(LivingEntity source, ClassDefinition.TargetPriority priority) {
+    private Comparator<LivingEntity> getComparator(LivingEntity source,
+            com.antigravity.rpg.feature.classes.component.AIBehavior.TargetPriority priority) {
         return switch (priority) {
             case CLOSEST -> Comparator.comparingDouble(e -> e.getLocation().distanceSquared(source.getLocation()));
             case LOWEST_HP -> Comparator.comparingDouble(LivingEntity::getHealth);

@@ -1,7 +1,7 @@
 package com.antigravity.rpg.feature.social;
 
 import com.antigravity.rpg.AntiGravityPlugin;
-import com.antigravity.rpg.feature.classes.ClassDefinition;
+import com.antigravity.rpg.feature.classes.component.Synergy;
 import com.antigravity.rpg.feature.player.PlayerData;
 import com.antigravity.rpg.feature.player.PlayerProfileService;
 import com.google.inject.Inject;
@@ -51,14 +51,14 @@ public class SynergyTask extends BukkitRunnable {
             return;
 
         com.antigravity.rpg.feature.player.PlayerData.getClassRegistry().getClass(classId).ifPresent(def -> {
-            ClassDefinition.Synergy synergy = def.getSynergy();
+            Synergy synergy = def.getSynergy();
             if (synergy == null || synergy.getEffects() == null || synergy.getEffects().isEmpty())
                 return;
 
             double rangeSq = Math.pow(synergy.getAuraRange(), 2);
             Party sourceParty = partyManager.getParty(sourcePlayer.getUniqueId());
 
-            for (ClassDefinition.SynergyEffect effect : synergy.getEffects()) {
+            for (Synergy.SynergyEffect effect : synergy.getEffects()) {
                 // 대상 분류 (PARTY, ALLY, SELF 등)
                 Collection<? extends Player> targets;
                 if (effect.getTarget().equalsIgnoreCase("PARTY") && sourceParty != null) {
@@ -84,7 +84,7 @@ public class SynergyTask extends BukkitRunnable {
         });
     }
 
-    private void applyEffect(Player source, Player target, ClassDefinition.SynergyEffect effect) {
+    private void applyEffect(Player source, Player target, Synergy.SynergyEffect effect) {
         String synergyKey = source.getUniqueId() + "_" + effect.getStat();
         Map<String, Double> targetMap = appliedSynergies.computeIfAbsent(target.getUniqueId(),
                 k -> new ConcurrentHashMap<>());
@@ -98,7 +98,7 @@ public class SynergyTask extends BukkitRunnable {
         }
     }
 
-    private void removeEffect(Player source, Player target, ClassDefinition.SynergyEffect effect) {
+    private void removeEffect(Player source, Player target, Synergy.SynergyEffect effect) {
         String synergyKey = source.getUniqueId() + "_" + effect.getStat();
         Map<String, Double> targetMap = appliedSynergies.get(target.getUniqueId());
 

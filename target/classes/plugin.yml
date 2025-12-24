@@ -17,3 +17,7 @@ commands:
     usage: /rpgadmin [subcommand]
     permission: antigravity.admin
     aliases: [ra]
+  skilltree:
+    description: Open your skill tree
+    usage: /skilltree
+    aliases: [st, skill]

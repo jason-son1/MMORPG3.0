@@ -1,6 +1,7 @@
 package com.antigravity.rpg.feature.classes;
 
 import com.antigravity.rpg.AntiGravityPlugin;
+import com.antigravity.rpg.feature.classes.component.*;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.bukkit.configuration.ConfigurationSection;
@@ -35,10 +36,19 @@ public class ClassRegistry {
         File classDir = new File(plugin.getDataFolder(), "classes");
         if (!classDir.exists()) {
             classDir.mkdirs();
+            // 기본 파일 생성 로직 (필요 시 추가)
+            plugin.saveResource("classes/_global_defaults.yml", false);
         }
 
         // 1단계: 재귀적으로 모든 YAML 파일 로드
-        Map<String, ClassDefinition> rawDefinitions = new HashMap<>();
+        Map<String, ClassDefinition> rawDefinitions = new LinkedHashMap<>(); // 순서 보장을 위해 LinkedHashMap 사용
+
+        // _global_defaults.yml 우선 로드
+        File globalDefaults = new File(classDir, "_global_defaults.yml");
+        if (globalDefaults.exists()) {
+            loadFromFile(globalDefaults, rawDefinitions);
+        }
+
         loadRecursive(classDir, rawDefinitions);
 
         // 2단계: 상속 구조 해결 (_global_defaults -> novice -> parent -> child)
@@ -46,6 +56,8 @@ public class ClassRegistry {
 
         // 3단계: 유효성 검사 및 최종 등록
         for (ClassDefinition def : rawDefinitions.values()) {
+            if (def.getKey().equals("_global_defaults"))
+                continue;
             if (validateDefinition(def)) {
                 classes.put(def.getKey(), def);
             }
@@ -54,9 +66,6 @@ public class ClassRegistry {
         plugin.getLogger().info("성공적으로 " + classes.size() + "개의 직업을 로드했습니다. (재귀 로딩 및 상속 적용)");
     }
 
-    /**
-     * 디렉터리를 재귀적으로 탐색하여 직업 설정 파일을 로드합니다.
-     */
     private void loadRecursive(File dir, Map<String, ClassDefinition> defs) {
         File[] files = dir.listFiles();
         if (files == null)
@@ -66,20 +75,22 @@ public class ClassRegistry {
             if (file.isDirectory()) {
                 loadRecursive(file, defs);
             } else if (file.getName().endsWith(".yml") || file.getName().endsWith(".yaml")) {
-                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-                // 파일명을 기본 키로 사용 (파일 내부에 key가 정의되어 있으면 덮어씀)
-                String fileName = file.getName().substring(0, file.getName().lastIndexOf('.'));
-
-                // kebab-case -> camelCase 매핑을 포함한 파싱
-                ClassDefinition def = parseDefinition(fileName, config);
-                defs.put(def.getKey(), def);
+                if (file.getName().equals("_global_defaults.yml"))
+                    continue; // 이미 로드됨
+                loadFromFile(file, defs);
             }
         }
     }
 
+    private void loadFromFile(File file, Map<String, ClassDefinition> defs) {
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        String fileName = file.getName().substring(0, file.getName().lastIndexOf('.'));
+        ClassDefinition def = parseDefinition(fileName, config);
+        defs.put(def.getKey(), def);
+    }
+
     /**
      * YAML 섹션을 ClassDefinition 객체로 파싱합니다.
-     * kebab-case 키를 지원합니다.
      */
     private ClassDefinition parseDefinition(String defaultKey, ConfigurationSection section) {
         ClassDefinition def = new ClassDefinition();
@@ -87,19 +98,14 @@ public class ClassRegistry {
         def.setParent(section.getString("parent"));
         def.setDisplayName(section.getString("display-name", section.getString("display_name", def.getKey())));
         def.setLore(section.getString("lore", ""));
-        def.setRole(parseEnum(ClassDefinition.Role.class, section.getString("role"), ClassDefinition.Role.MELEE_DPS));
+        def.setRole(section.getString("role", "MELEE_DPS"));
 
         // Attributes (핵심 속성)
         ConfigurationSection attrSec = section.getConfigurationSection("attributes");
         if (attrSec != null) {
             ClassDefinition.Attributes attr = new ClassDefinition.Attributes();
             attr.setPrimary(attrSec.getString("primary", "STRENGTH"));
-            attr.setCombatStyle(parseEnum(ClassDefinition.CombatStyle.class,
-                    attrSec.getString("combat-style", attrSec.getString("combat_style")),
-                    ClassDefinition.CombatStyle.MELEE));
-            attr.setResourceType(parseEnum(ClassDefinition.ResourceType.class,
-                    attrSec.getString("resource-type", attrSec.getString("resource_type")),
-                    ClassDefinition.ResourceType.MANA));
+            attr.setCombatStyle(attrSec.getString("combat-style", attrSec.getString("combat_style", "MELEE")));
             attr.setBase(parseModifierMap(attrSec.getConfigurationSection("base")));
             def.setAttributes(attr);
         }
@@ -116,6 +122,7 @@ public class ClassRegistry {
             if (advList != null) {
                 for (Object item : advList) {
                     if (item instanceof Map<?, ?> rawMap) {
+                        @SuppressWarnings("unchecked")
                         Map<String, Object> advMap = (Map<String, Object>) rawMap;
                         ClassDefinition.Advancement adv = new ClassDefinition.Advancement();
                         adv.setLevel(((Number) advMap.getOrDefault("level", 0)).intValue());
@@ -160,6 +167,7 @@ public class ClassRegistry {
             if (passiveList != null) {
                 for (Object item : passiveList) {
                     if (item instanceof Map<?, ?> rawMap) {
+                        @SuppressWarnings("unchecked")
                         Map<String, Object> m = (Map<String, Object>) rawMap;
                         passive.add(new ClassDefinition.PassiveSkill(
                                 (String) m.get("id"),
@@ -172,27 +180,19 @@ public class ClassRegistry {
             def.setSkills(skills);
         }
 
-        // Equipment (장비 및 마스터리)
+        // Equipment Rules (장비 컴포넌트)
         ConfigurationSection equipSec = section.getConfigurationSection("equipment");
         if (equipSec != null) {
-            ClassDefinition.Equipment equip = new ClassDefinition.Equipment();
-            equip.setAllowWeapons(equipSec.getStringList("allow-weapons"));
-            if (equip.getAllowWeapons().isEmpty())
-                equip.setAllowWeapons(equipSec.getStringList("allow_weapons"));
+            EquipmentRules equip = new EquipmentRules();
+            equip.setAllowWeapons(getStringList(equipSec, "allow-weapons", "allow_weapons"));
+            equip.setAllowArmors(getStringList(equipSec, "allow-armors", "allow_armors"));
 
-            equip.setAllowArmors(equipSec.getStringList("allow-armors"));
-            if (equip.getAllowArmors().isEmpty())
-                equip.setAllowArmors(equipSec.getStringList("allow_armors"));
-
-            List<ClassDefinition.MasteryBonus> bonuses = new ArrayList<>();
-            List<?> masteryList = equipSec.getList("mastery-bonus");
-            if (masteryList == null)
-                masteryList = equipSec.getList("mastery_bonus");
-
+            List<EquipmentRules.MasteryBonus> bonuses = new ArrayList<>();
+            List<?> masteryList = getList(equipSec, "mastery-bonus", "mastery_bonus");
             if (masteryList != null) {
                 for (Object item : masteryList) {
                     if (item instanceof Map<?, ?> m) {
-                        bonuses.add(new ClassDefinition.MasteryBonus(
+                        bonuses.add(new EquipmentRules.MasteryBonus(
                                 (String) m.get("condition"),
                                 parseObjectToModifierMap(m.get("stats"))));
                     }
@@ -202,27 +202,25 @@ public class ClassRegistry {
             def.setEquipment(equip);
         }
 
-        // AI Behavior (AI 행동 패턴)
-        ConfigurationSection aiSec = section.getConfigurationSection("ai-behavior");
-        if (aiSec == null)
-            aiSec = section.getConfigurationSection("ai_behavior");
+        // AI Behavior (AI 컴포넌트)
+        ConfigurationSection aiSec = section.getConfigurationSection("ai-behavior") != null
+                ? section.getConfigurationSection("ai-behavior")
+                : section.getConfigurationSection("ai_behavior");
         if (aiSec != null) {
-            ClassDefinition.AIBehavior ai = new ClassDefinition.AIBehavior();
-            ai.setTargetPriority(parseEnum(ClassDefinition.TargetPriority.class,
+            AIBehavior ai = new AIBehavior();
+            ai.setTargetPriority(parseEnum(AIBehavior.TargetPriority.class,
                     aiSec.getString("target-priority", aiSec.getString("target_priority")),
-                    ClassDefinition.TargetPriority.CLOSEST));
+                    AIBehavior.TargetPriority.CLOSEST));
             ai.setCombatDistance(aiSec.getDouble("combat-distance", aiSec.getDouble("combat_distance", 3.0)));
 
-            List<ClassDefinition.SkillRotation> rotations = new ArrayList<>();
-            List<?> rotationList = aiSec.getList("skill-rotation");
-            if (rotationList == null)
-                rotationList = aiSec.getList("skill_rotation");
-
+            List<AIBehavior.SkillRotation> rotations = new ArrayList<>();
+            List<?> rotationList = getList(aiSec, "skill-rotation", "skill_rotation");
             if (rotationList != null) {
                 for (Object item : rotationList) {
                     if (item instanceof Map<?, ?> rawMap) {
+                        @SuppressWarnings("unchecked")
                         Map<String, Object> m = (Map<String, Object>) rawMap;
-                        rotations.add(new ClassDefinition.SkillRotation(
+                        rotations.add(new AIBehavior.SkillRotation(
                                 (String) m.get("skill"),
                                 (String) m.get("condition")));
                     }
@@ -232,19 +230,20 @@ public class ClassRegistry {
             def.setAiBehavior(ai);
         }
 
-        // Synergy (파티 시너지)
+        // Synergy (시너지 컴포넌트)
         ConfigurationSection synergySec = section.getConfigurationSection("synergy");
         if (synergySec != null) {
-            ClassDefinition.Synergy synergy = new ClassDefinition.Synergy();
+            Synergy synergy = new Synergy();
             synergy.setAuraRange(synergySec.getDouble("aura-range", synergySec.getDouble("aura_range", 10.0)));
 
-            List<ClassDefinition.SynergyEffect> effects = new ArrayList<>();
+            List<Synergy.SynergyEffect> effects = new ArrayList<>();
             List<?> effectList = synergySec.getList("effects");
             if (effectList != null) {
                 for (Object item : effectList) {
                     if (item instanceof Map<?, ?> rawMap) {
+                        @SuppressWarnings("unchecked")
                         Map<String, Object> m = (Map<String, Object>) rawMap;
-                        effects.add(new ClassDefinition.SynergyEffect(
+                        effects.add(new Synergy.SynergyEffect(
                                 (String) m.get("type"),
                                 (String) m.get("target"),
                                 (String) m.get("stat"),
@@ -256,15 +255,127 @@ public class ClassRegistry {
             def.setSynergy(synergy);
         }
 
+        // Resource Settings (자원 컴포넌트 - 신규)
+        ConfigurationSection resSec = section.getConfigurationSection("resource-settings") != null
+                ? section.getConfigurationSection("resource-settings")
+                : section.getConfigurationSection("resource_settings");
+        if (resSec != null) {
+            ResourceSettings res = new ResourceSettings();
+            res.setType(parseEnum(ResourceSettings.ResourceType.class, resSec.getString("type"),
+                    ResourceSettings.ResourceType.MANA));
+            res.setMax(resSec.getDouble("max", 100.0));
+            res.setRegenMode(parseEnum(ResourceSettings.RegenMode.class,
+                    resSec.getString("regen-mode", resSec.getString("regen_mode")),
+                    ResourceSettings.RegenMode.PASSIVE));
+            res.setRegenAmount(resSec.getDouble("regen-amount", resSec.getDouble("regen_amount", 1.0)));
+            res.setDecayAmount(resSec.getDouble("decay-amount", resSec.getDouble("decay_amount", 0.0)));
+            def.setResourceSettings(res);
+        }
+
+        // Experience Sources (경험치 컴포넌트 - 신규)
+        ConfigurationSection expSec = section.getConfigurationSection("experience-sources") != null
+                ? section.getConfigurationSection("experience-sources")
+                : section.getConfigurationSection("experience_sources");
+        if (expSec != null) {
+            ExperienceSources exp = new ExperienceSources();
+            Map<String, ExperienceSources.SourceSettings> sources = new HashMap<>();
+            for (String key : expSec.getKeys(false)) {
+                ConfigurationSection s = expSec.getConfigurationSection(key);
+                if (s != null) {
+                    sources.put(key, new ExperienceSources.SourceSettings(
+                            s.getString("amount"),
+                            s.getStringList("conditions"),
+                            s.getStringList("blocks")));
+                }
+            }
+            exp.setSources(sources);
+            def.setExperienceSources(exp);
+        }
+
+        // Requirements (전직 조건 컴포넌트 - 신규)
+        List<String> reqList = section.getStringList("requirements");
+        if (reqList != null && !reqList.isEmpty()) {
+            def.setRequirements(new PromotionRequirements(reqList));
+        }
+
+        // GUI Display (GUI 컴포넌트 - 신규)
+        ConfigurationSection guiSec = section.getConfigurationSection("gui-display") != null
+                ? section.getConfigurationSection("gui-display")
+                : section.getConfigurationSection("gui_display");
+        if (guiSec != null) {
+            GUIDisplay gui = new GUIDisplay();
+            gui.setIcon(guiSec.getString("icon", "IRON_SWORD"));
+            gui.setCustomModelData(guiSec.getInt("custom-model-data", guiSec.getInt("custom_model_data", 0)));
+            gui.setName(guiSec.getString("name", def.getDisplayName()));
+            gui.setDescription(guiSec.getStringList("description"));
+            def.setGuiDisplay(gui);
+        }
+
+        // Skill Tree (스킬 트리 컴포넌트 - 신규)
+        ConfigurationSection treeSec = section.getConfigurationSection("skill-tree") != null
+                ? section.getConfigurationSection("skill-tree")
+                : section.getConfigurationSection("skill_tree");
+        if (treeSec != null) {
+            SkillTree tree = new SkillTree();
+            List<SkillTreeNode> nodes = new ArrayList<>();
+            ConfigurationSection nodesSec = treeSec.getConfigurationSection("nodes");
+            if (nodesSec != null) {
+                for (String nodeKey : nodesSec.getKeys(false)) {
+                    ConfigurationSection n = nodesSec.getConfigurationSection(nodeKey);
+                    if (n != null) {
+                        SkillTreeNode node = new SkillTreeNode();
+                        node.setSkillId(nodeKey);
+                        node.setType(n.getString("type", "ACTIVE"));
+                        node.setMaxLevel(n.getInt("max-level", n.getInt("max_level", 5)));
+                        node.setPointsPerLevel(n.getInt("points-per-level", n.getInt("points_per_level", 1)));
+                        node.setParentSkills(n.getStringList("parent-skills") != null ? n.getStringList("parent-skills")
+                                : n.getStringList("parent_skills"));
+                        node.setRequirements(n.getStringList("requirements"));
+                        node.setX(n.getInt("x", 0));
+                        node.setY(n.getInt("y", 0));
+                        nodes.add(node);
+                    }
+                }
+            }
+            tree.setNodes(nodes);
+            def.setSkillTree(tree);
+        }
+
         return def;
+    }
+
+    private List<String> getStringList(ConfigurationSection section, String... keys) {
+        for (String key : keys) {
+            List<String> list = section.getStringList(key);
+            if (!list.isEmpty())
+                return list;
+        }
+        return new ArrayList<>();
+    }
+
+    private List<?> getList(ConfigurationSection section, String... keys) {
+        for (String key : keys) {
+            List<?> list = section.getList(key);
+            if (list != null)
+                return list;
+        }
+        return null;
     }
 
     /**
      * 상속 관계를 해결하고 상위 설정의 값을 병합합니다.
      */
     private void resolveInheritance(Map<String, ClassDefinition> defs) {
-        // _global_defaults가 있다면 먼저 로드되도록 처리됨 (parent 체인을 따라감)
+        ClassDefinition global = defs.get("_global_defaults");
         for (ClassDefinition def : defs.values()) {
+            if (def.getKey().equals("_global_defaults"))
+                continue;
+
+            // 모든 직업은 명시적 부모가 없으면 _global_defaults를 상속
+            if (global != null && (def.getParent() == null || def.getParent().isEmpty())) {
+                def.setParent("_global_defaults");
+            }
+
             if (def.getParent() != null && !def.getParent().isEmpty()) {
                 applyParent(def, defs, new HashSet<>());
             }
@@ -301,14 +412,10 @@ public class ClassRegistry {
         } else if (parent.getAttributes() != null) {
             ClassDefinition.Attributes cAttr = child.getAttributes();
             ClassDefinition.Attributes pAttr = parent.getAttributes();
-
             if (cAttr.getPrimary() == null)
                 cAttr.setPrimary(pAttr.getPrimary());
             if (cAttr.getCombatStyle() == null)
                 cAttr.setCombatStyle(pAttr.getCombatStyle());
-            if (cAttr.getResourceType() == null)
-                cAttr.setResourceType(pAttr.getResourceType());
-
             if (cAttr.getBase() == null) {
                 cAttr.setBase(new HashMap<>(pAttr.getBase()));
             } else if (pAttr.getBase() != null) {
@@ -330,36 +437,30 @@ public class ClassRegistry {
             }
         }
 
-        // [4] Skills 병합 (리스트 합치기)
+        // [4] Skills 병합
         if (child.getSkills() == null) {
             child.setSkills(cloneSkills(parent.getSkills()));
         } else if (parent.getSkills() != null) {
             child.getSkills().getActive().addAll(parent.getSkills().getActive());
             child.getSkills().getPassive().addAll(parent.getSkills().getPassive());
-            // TODO: 중복 제거 로직 필요 시 추가
         }
 
-        // [5] Equipment 병합
-        if (child.getEquipment() == null) {
+        // [5] 컴포넌트 병합
+        if (child.getEquipment() == null)
             child.setEquipment(cloneEquipment(parent.getEquipment()));
-        } else if (parent.getEquipment() != null) {
-            child.getEquipment().getAllowWeapons().addAll(parent.getEquipment().getAllowWeapons());
-            child.getEquipment().getAllowArmors().addAll(parent.getEquipment().getAllowArmors());
-            child.getEquipment().getMasteryBonus().addAll(parent.getEquipment().getMasteryBonus());
-        }
-
-        // [6] AI Behavior 병합
-        if (child.getAiBehavior() == null) {
+        if (child.getAiBehavior() == null)
             child.setAiBehavior(cloneAI(parent.getAiBehavior()));
-        }
-
-        // [7] Synergy 병합
-        if (child.getSynergy() == null) {
+        if (child.getSynergy() == null)
             child.setSynergy(cloneSynergy(parent.getSynergy()));
-        }
+        if (child.getResourceSettings() == null)
+            child.setResourceSettings(cloneResource(parent.getResourceSettings()));
+        if (child.getExperienceSources() == null)
+            child.setExperienceSources(cloneExp(parent.getExperienceSources()));
+        if (child.getRequirements() == null)
+            child.setRequirements(cloneReq(parent.getRequirements()));
+        if (child.getGuiDisplay() == null)
+            child.setGuiDisplay(cloneGUI(parent.getGuiDisplay()));
     }
-
-    // --- Helper Methods for Deep Cloning during Inheritance ---
 
     private ClassDefinition.Attributes cloneAttributes(ClassDefinition.Attributes original) {
         if (original == null)
@@ -367,7 +468,6 @@ public class ClassRegistry {
         ClassDefinition.Attributes clone = new ClassDefinition.Attributes();
         clone.setPrimary(original.getPrimary());
         clone.setCombatStyle(original.getCombatStyle());
-        clone.setResourceType(original.getResourceType());
         clone.setBase(original.getBase() != null ? new HashMap<>(original.getBase()) : new HashMap<>());
         return clone;
     }
@@ -391,46 +491,59 @@ public class ClassRegistry {
         return clone;
     }
 
-    private ClassDefinition.Equipment cloneEquipment(ClassDefinition.Equipment original) {
+    private EquipmentRules cloneEquipment(EquipmentRules original) {
         if (original == null)
             return null;
-        ClassDefinition.Equipment clone = new ClassDefinition.Equipment();
-        clone.setAllowWeapons(
-                original.getAllowWeapons() != null ? new ArrayList<>(original.getAllowWeapons()) : new ArrayList<>());
-        clone.setAllowArmors(
-                original.getAllowArmors() != null ? new ArrayList<>(original.getAllowArmors()) : new ArrayList<>());
-        clone.setMasteryBonus(
-                original.getMasteryBonus() != null ? new ArrayList<>(original.getMasteryBonus()) : new ArrayList<>());
-        return clone;
+        return new EquipmentRules(
+                new ArrayList<>(original.getAllowWeapons()),
+                new ArrayList<>(original.getAllowArmors()),
+                new ArrayList<>(original.getMasteryBonus()));
     }
 
-    private ClassDefinition.AIBehavior cloneAI(ClassDefinition.AIBehavior original) {
+    private AIBehavior cloneAI(AIBehavior original) {
         if (original == null)
             return null;
-        ClassDefinition.AIBehavior clone = new ClassDefinition.AIBehavior();
-        clone.setTargetPriority(original.getTargetPriority());
-        clone.setCombatDistance(original.getCombatDistance());
-        clone.setSkillRotation(
+        return new AIBehavior(original.getTargetPriority(), original.getCombatDistance(),
                 original.getSkillRotation() != null ? new ArrayList<>(original.getSkillRotation()) : new ArrayList<>());
-        return clone;
     }
 
-    private ClassDefinition.Synergy cloneSynergy(ClassDefinition.Synergy original) {
+    private Synergy cloneSynergy(Synergy original) {
         if (original == null)
             return null;
-        ClassDefinition.Synergy clone = new ClassDefinition.Synergy();
-        clone.setAuraRange(original.getAuraRange());
-        clone.setEffects(original.getEffects() != null ? new ArrayList<>(original.getEffects()) : new ArrayList<>());
-        return clone;
+        return new Synergy(original.getAuraRange(),
+                original.getEffects() != null ? new ArrayList<>(original.getEffects()) : new ArrayList<>());
+    }
+
+    private ResourceSettings cloneResource(ResourceSettings original) {
+        if (original == null)
+            return null;
+        return new ResourceSettings(original.getType(), original.getMax(), original.getRegenMode(),
+                original.getRegenAmount(), original.getDecayAmount());
+    }
+
+    private ExperienceSources cloneExp(ExperienceSources original) {
+        if (original == null)
+            return null;
+        return new ExperienceSources(
+                original.getSources() != null ? new HashMap<>(original.getSources()) : new HashMap<>());
+    }
+
+    private PromotionRequirements cloneReq(PromotionRequirements original) {
+        if (original == null)
+            return null;
+        return new PromotionRequirements(
+                original.getRequirements() != null ? new ArrayList<>(original.getRequirements()) : new ArrayList<>());
+    }
+
+    private GUIDisplay cloneGUI(GUIDisplay original) {
+        if (original == null)
+            return null;
+        return new GUIDisplay(original.getIcon(), original.getCustomModelData(), original.getName(),
+                original.getDescription() != null ? new ArrayList<>(original.getDescription()) : new ArrayList<>());
     }
 
     private boolean validateDefinition(ClassDefinition def) {
-        // 필수 값 검사
-        if (def.getKey() == null)
-            return false;
-
-        // 스킬 ID 존재 여부 등 상호 참조 검사는 추후 SkillManager를 통해 수행
-        return true;
+        return def.getKey() != null;
     }
 
     private <T extends Enum<T>> T parseEnum(Class<T> enumClass, String value, T defaultValue) {

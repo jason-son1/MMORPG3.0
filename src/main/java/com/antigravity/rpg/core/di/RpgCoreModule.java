@@ -62,6 +62,12 @@ public class RpgCoreModule extends AbstractModule {
         // [NEW] Effect System
         bind(com.antigravity.rpg.feature.skill.effect.EffectFactory.class).in(Singleton.class);
         bind(com.antigravity.rpg.feature.skill.effect.EffectLibrary.class).in(Singleton.class);
+
+        // [NEW] Listeners
+        bind(com.antigravity.rpg.core.engine.listener.SkillTreeListener.class).in(Singleton.class);
+
+        // [NEW] Commands
+        bind(com.antigravity.rpg.command.player.SkillTreeCommand.class).in(Singleton.class);
     }
 
     @Provides

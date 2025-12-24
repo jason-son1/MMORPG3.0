@@ -1,0 +1,41 @@
+key: mage
+display-name: "&b마법사"
+lore: "&7강력한 원거리 마법을 사용하여 적을 섬멸합니다."
+role: DPS
+
+attributes:
+  primary: INTELLIGENCE
+  combat-style: RANGED
+  base:
+    MAX_HEALTH: 60.0
+    INTELLIGENCE: 15.0
+    MAX_MANA: 200.0
+
+resource-settings:
+  type: MANA
+  max: 200.0
+  regen-mode: PASSIVE
+  regen-amount: 8.0 # 1초당 8.0 회복
+
+skill-tree:
+  nodes:
+    fireball:
+      type: ACTIVE
+      max-level: 5
+      points-per-level: 1
+      x: 4
+      y: 1
+    frost_bolt:
+      type: ACTIVE
+      max-level: 5
+      points-per-level: 1
+      x: 2
+      y: 1
+    arcane_power:
+      type: PASSIVE
+      max-level: 3
+      points-per-level: 2
+      requirements:
+        - "level >= 15"
+      x: 3
+      y: 2
