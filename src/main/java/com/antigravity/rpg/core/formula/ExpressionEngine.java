@@ -1,5 +1,6 @@
 package com.antigravity.rpg.core.formula;
 
+import com.antigravity.rpg.AntiGravityPlugin;
 import com.antigravity.rpg.core.engine.StatHolder;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -23,7 +24,31 @@ public class ExpressionEngine {
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{([a-zA-Z0-9_]+)\\}");
 
     @Inject
-    public ExpressionEngine() {
+    public ExpressionEngine(AntiGravityPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    private final AntiGravityPlugin plugin;
+
+    /**
+     * config.yml의 formulas 섹션에 정의된 수식을 가져와 계산합니다.
+     * 
+     * @param formulaKey config.yml 내의 키 (예: "formulas.damage-reduction")
+     * @param holder     스탯 정보를 제공할 대상
+     * @return 계산된 실수 값. 수식이 없거나 오류 생기면 0.0
+     */
+    public double evaluate(String formulaKey, StatHolder holder) {
+        String formula = plugin.getConfig().getString("formulas." + formulaKey);
+        if (formula == null) {
+            // 키 전체를 인자로 받았을 수도 있으므로 재시도 (legacy support or direct path)
+            formula = plugin.getConfig().getString(formulaKey);
+        }
+
+        if (formula == null || formula.isEmpty()) {
+            // plugin.getLogger().warning("Formula not found in config: " + formulaKey);
+            return 0.0;
+        }
+        return evaluateFormula(formula, holder);
     }
 
     /**
@@ -33,7 +58,7 @@ public class ExpressionEngine {
      * @param holder  스탯 정보를 제공할 대상
      * @return 계산된 실수 값
      */
-    public double evaluate(String formula, StatHolder holder) {
+    public double evaluateFormula(String formula, StatHolder holder) {
         if (formula == null || formula.isEmpty())
             return 0.0;
 

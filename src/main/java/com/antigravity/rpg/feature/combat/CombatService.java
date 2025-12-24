@@ -173,6 +173,36 @@ public class CombatService implements Service, Listener {
     }
 
     /**
+     * 스크립트 등에서 강제로 데미지를 입힐 때 사용합니다.
+     * 
+     * @param attacker 공격자
+     * @param victim   피격자
+     * @param amount   데미지 양
+     * @param tags     데미지 태그 (PHYSICAL, MAGICAL 등)
+     */
+    public void dealScriptDamage(LivingEntity attacker, LivingEntity victim, double amount, DamageTag... tags) {
+        EntityStatData attackerStats = getStats(attacker);
+        EntityStatData victimStats = getStats(victim);
+
+        if (attackerStats == null || victimStats == null)
+            return;
+
+        DamageContext context = new DamageContext(attacker, victim, attackerStats, victimStats, amount);
+        for (DamageTag tag : tags) {
+            context.addTag(tag);
+        }
+
+        damageProcessor.process(context);
+
+        double finalDamage = context.getFinalDamage();
+        // 실제 데미지 적용 (NoDamageTicks 무시 등은 필요시 추가)
+        victim.damage(finalDamage, attacker);
+
+        // 인디케이터
+        damageIndicatorService.displayDamage(victim.getLocation(), finalDamage, context.isCritical());
+    }
+
+    /**
      * 스탯 정보가 없는 몬스터를 위한 기본 스탯을 반환합니다.
      */
     private EntityStatData getDefaultMonsterStats() {

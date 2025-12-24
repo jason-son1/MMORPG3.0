@@ -58,4 +58,14 @@ public class MythicMobsHook implements Listener {
 
         logger.info("[MythicMobsHook] " + mobType.getInternalName() + " (" + uuid + ") 에 RPG 스탯을 주입했습니다.");
     }
+
+    // --- Lua Helper Methods ---
+
+    public boolean isMythicMob(org.bukkit.entity.Entity entity) {
+        return io.lumine.mythic.bukkit.MythicBukkit.inst().getMobManager().isActiveMob(entity.getUniqueId());
+    }
+
+    public void castSkill(org.bukkit.entity.Entity caster, String skillName) {
+        io.lumine.mythic.bukkit.MythicBukkit.inst().getAPIHelper().castSkill(caster, skillName);
+    }
 }

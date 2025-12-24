@@ -19,17 +19,47 @@ import java.nio.charset.StandardCharsets;
 public class LuaScriptService implements Service {
 
     private final AntiGravityPlugin plugin;
+    private final com.antigravity.rpg.core.formula.ExpressionEngine expressionEngine;
+    private final com.antigravity.rpg.feature.combat.CombatService combatService;
+    private final com.antigravity.rpg.core.engine.hook.MythicMobsHook mythicMobsHook;
+    private final com.antigravity.rpg.core.engine.hook.ModelEngineHook modelEngineHook;
+
     private Globals globals;
     private final java.util.Map<String, LuaValue> scriptCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Inject
-    public LuaScriptService(AntiGravityPlugin plugin) {
+    public LuaScriptService(AntiGravityPlugin plugin,
+            com.antigravity.rpg.core.formula.ExpressionEngine expressionEngine,
+            com.antigravity.rpg.feature.combat.CombatService combatService,
+            com.antigravity.rpg.core.engine.hook.MythicMobsHook mythicMobsHook,
+            com.antigravity.rpg.core.engine.hook.ModelEngineHook modelEngineHook) {
         this.plugin = plugin;
+        this.expressionEngine = expressionEngine;
+        this.combatService = combatService;
+        this.mythicMobsHook = mythicMobsHook;
+        this.modelEngineHook = modelEngineHook;
     }
 
     @Override
     public void onEnable() {
+        // Initialize Binding with services
+        LuaBinding.init(combatService, mythicMobsHook, modelEngineHook);
+
         this.globals = JsePlatform.standardGlobals();
+
+        // Expose ExpressionEngine to Lua
+        globals.set("expressionEngine", CoerceJavaToLua.coerce(expressionEngine));
+
+        // Load formulas from config into Lua globals
+        if (plugin.getConfig().isConfigurationSection("formulas")) {
+            org.bukkit.configuration.ConfigurationSection accumulatedFormulas = plugin.getConfig()
+                    .getConfigurationSection("formulas");
+            for (String key : accumulatedFormulas.getKeys(false)) {
+                String formula = accumulatedFormulas.getString(key);
+                globals.set("formula_" + key.replace("-", "_"), LuaValue.valueOf(formula));
+            }
+        }
+
         loadCombatFormulas();
         loadScripts();
         plugin.getLogger().info("Lua engine initialized and scripts loaded.");

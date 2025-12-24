@@ -11,7 +11,9 @@ import org.bukkit.attribute.AttributeInstance;
  * 플레이어의 모든 데이터를 담고 있는 데이터 객체입니다.
  * ECS 컴포넌트 저장소, 리소스 풀, 스탯 계산 로직 등을 포함합니다.
  */
-public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
+public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder,
+        com.antigravity.rpg.core.engine.StatCalculator.PlayerDataFunc,
+        com.antigravity.rpg.core.engine.StatCalculator.NativeStatHolder {
     @Getter
     private final UUID uuid;
 

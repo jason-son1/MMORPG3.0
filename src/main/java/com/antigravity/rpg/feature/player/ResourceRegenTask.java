@@ -13,10 +13,13 @@ import org.bukkit.scheduler.BukkitRunnable;
 public class ResourceRegenTask extends BukkitRunnable {
 
     private final PlayerProfileService profileService;
+    private final com.antigravity.rpg.core.formula.ExpressionEngine expressionEngine;
 
     @Inject
-    public ResourceRegenTask(AntiGravityPlugin plugin, PlayerProfileService profileService) {
+    public ResourceRegenTask(AntiGravityPlugin plugin, PlayerProfileService profileService,
+            com.antigravity.rpg.core.formula.ExpressionEngine expressionEngine) {
         this.profileService = profileService;
+        this.expressionEngine = expressionEngine;
         this.runTaskTimer(plugin, 20L, 20L); // 1초 간격 실행
     }
 
@@ -47,8 +50,15 @@ public class ResourceRegenTask extends BukkitRunnable {
 
                 // 1. 재생 모드에 따른 처리
                 if (mode == com.antigravity.rpg.feature.classes.component.ResourceSettings.RegenMode.PASSIVE) {
-                    // 패시브 회복: 기본 설정값 + 스탯 보너스(나중에 추가 가능)
-                    double regen = settings.getRegenAmount();
+                    // 공식 기반 회복 시도
+                    String formulaKey = rTypeStr.toLowerCase() + "-regen";
+                    double regen = expressionEngine.evaluate(formulaKey, data);
+
+                    // 공식이 없으면(0.0) 기본 설정값 사용 (하위 호환성)
+                    if (regen == 0.0) {
+                        regen = settings.getRegenAmount();
+                    }
+
                     pool.recover(rTypeStr, regen, maxResource);
                 } else if (mode == com.antigravity.rpg.feature.classes.component.ResourceSettings.RegenMode.DECAY) {
                     // 비전투 시 감소
@@ -59,9 +69,16 @@ public class ResourceRegenTask extends BukkitRunnable {
                 }
             }
 
-            // 2. 공통: 스태미나 회복 (스태미나는 보조 자원이므로 항상 패시브 회복)
+            // 2. 공통: 스태미나 회복
+            // 스태미나도 공식 사용 시도
             double maxStamina = data.getStat("MAX_STAMINA", 100.0);
-            double stamRegen = data.getStat("STAMINA_REGEN", 10.0);
+            double stamRegen = expressionEngine.evaluate("stamina-regen", data);
+
+            // 공식 없으면 기본값
+            if (stamRegen == 0.0) {
+                stamRegen = data.getStat("STAMINA_REGEN", 10.0);
+            }
+
             pool.recover("STAMINA", stamRegen, maxStamina);
 
             data.markDirty();

@@ -1,0 +1,15 @@
+name: "Siphon Life"
+cooldown: 5.0
+cost:
+  health: 10.0
+target:
+  type: "SINGLE"
+  range: 15.0
+mechanics:
+  - type: "SCRIPT"
+    script: "siphon_logic.lua"
+    function: "cast_siphon"
+  - type: "SOUND"
+    sound: "ENTITY_WITCH_DRINK"
+    volume: 1.0
+    pitch: 0.5

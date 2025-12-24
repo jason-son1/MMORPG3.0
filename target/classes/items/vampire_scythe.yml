@@ -1,0 +1,16 @@
+name: "Vampire Scythe"
+material: NETHERITE_HOE
+custom_model_data: 2001
+stats:
+  base:
+    PHYSICAL_DAMAGE: 50
+    CRITICAL_CHANCE: 10
+  bonus:
+    "strength": 5
+passive:
+  trigger: "ON_HIT"
+  chance: 0.2
+  effect: "lifesteal_effect" # Refers to a defined effect or skill
+scripts:
+  on_equip: "scythe_equip.lua"
+  on_hit: "siphon_logic.lua:on_weapon_hit"

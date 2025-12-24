@@ -80,13 +80,37 @@ public class StatCalculator {
                                 baseValue += (level - 1) * growthValue;
                             } else {
                                 // 수식 평가 (예: "2 + (level * 0.5)")
-                                // 수식 평가 결과 자체가 추가될 총량임
                                 double evaluatedGrowth = expressionEngine.evaluate(growthExpr, holder);
                                 baseValue += evaluatedGrowth;
                             }
                         }
                     }
                 }
+            }
+        }
+
+        // 3. 파생 스탯 보너스(Bonuses) 적용
+        // "source" -> "target" 공식이 있다면, holder.getStat(source)를 조회하여 공식 적용
+        // 주의: 순환 참조 방지를 위해 calculateStat 내부에서는 getStat(source)를 신중하게 호출해야 하지만,
+        // 여기서는 getStat(source)가 캐시를 타므로 무한 루프만 없다면 괜찮음.
+        // 하지만 getStat(source)가 다시 이 calculateStat(target)을 부르는 구조면 스택 오버플로우.
+        // 보통 Primary(힘) -> Secondary(공격력) 구조이므로 상호 참조는 설정 단계에서 막아야 함.
+
+        for (StatRegistry.StatBonus bonus : statRegistry.getBonuses()) {
+            if (bonus.getTarget().equals(statId)) {
+                // source 값을 가져옴 -> getStat 재귀 호출
+                // TODO: 순환 참조 감지 로직?
+                double sourceValue = getStat(holder, bonus.getSource());
+
+                // 공식에서 "source" 변수에 sourceValue를 주입하기 위해 임시 변수 치환
+                // 하지만 ExpressionEngine.evaluate(formula, holder)는 {var} 형태를 holder에서 찾음.
+                // 여기서는 "source"라는 특정 변수명을 값으로 치환해서 전달해야 함.
+                // 편의상 수식 문자열 자체를 replace하거나,
+                // ExpressionEngine에 setVariable 기능을 외부에서 쓸 수 있게 해야 하는데,
+                // 현재 evaluate 인터페이스는 holder만 받음.
+                // 간단한 해결책: 수식 내 "source"를 숫자값으로 치환해버리기.
+                String safeFormula = bonus.getFormula().replace("source", String.valueOf(sourceValue));
+                baseValue += expressionEngine.evaluateFormula(safeFormula, holder);
             }
         }
 
