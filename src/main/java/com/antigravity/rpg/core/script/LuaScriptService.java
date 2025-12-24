@@ -23,6 +23,7 @@ public class LuaScriptService implements Service {
     private final com.antigravity.rpg.feature.combat.CombatService combatService;
     private final com.antigravity.rpg.core.engine.hook.MythicMobsHook mythicMobsHook;
     private final com.antigravity.rpg.core.engine.hook.ModelEngineHook modelEngineHook;
+    private final com.antigravity.rpg.feature.player.PlayerProfileService playerProfileService;
 
     private Globals globals;
     private final java.util.Map<String, LuaValue> scriptCache = new java.util.concurrent.ConcurrentHashMap<>();
@@ -32,18 +33,20 @@ public class LuaScriptService implements Service {
             com.antigravity.rpg.core.formula.ExpressionEngine expressionEngine,
             com.antigravity.rpg.feature.combat.CombatService combatService,
             com.antigravity.rpg.core.engine.hook.MythicMobsHook mythicMobsHook,
-            com.antigravity.rpg.core.engine.hook.ModelEngineHook modelEngineHook) {
+            com.antigravity.rpg.core.engine.hook.ModelEngineHook modelEngineHook,
+            com.antigravity.rpg.feature.player.PlayerProfileService playerProfileService) {
         this.plugin = plugin;
         this.expressionEngine = expressionEngine;
         this.combatService = combatService;
         this.mythicMobsHook = mythicMobsHook;
         this.modelEngineHook = modelEngineHook;
+        this.playerProfileService = playerProfileService;
     }
 
     @Override
     public void onEnable() {
         // Initialize Binding with services
-        LuaBinding.init(combatService, mythicMobsHook, modelEngineHook);
+        LuaBinding.init(combatService, mythicMobsHook, modelEngineHook, playerProfileService);
 
         this.globals = JsePlatform.standardGlobals();
 
@@ -208,5 +211,9 @@ public class LuaScriptService implements Service {
     @Override
     public String getName() {
         return "LuaScriptService";
+    }
+
+    public Globals getGlobals() {
+        return globals;
     }
 }

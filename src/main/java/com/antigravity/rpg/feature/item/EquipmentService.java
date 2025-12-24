@@ -85,15 +85,46 @@ public class EquipmentService implements Listener {
         if (data == null)
             return true;
 
-        String classId = data.getClassId();
-        if (classId == null || classId.isEmpty())
+        var activeClasses = data.getClassData().getActiveClasses();
+        if (activeClasses == null || activeClasses.isEmpty()) {
             return true;
+        }
 
-        var classDefOpt = PlayerData.getClassRegistry().getClass(classId);
-        if (classDefOpt.isEmpty())
+        boolean anyAllowed = false;
+        boolean hasRestrictions = false;
+
+        for (String classId : activeClasses.values()) {
+            if (classId == null || classId.isEmpty())
+                continue;
+
+            var classDefOpt = PlayerData.getClassRegistry().getClass(classId);
+            if (classDefOpt.isEmpty())
+                continue;
+            ClassDefinition def = classDefOpt.get();
+
+            hasRestrictions = true;
+
+            // 1. Lua Check
+            if (def.hasLuaMethod("can_equip")) {
+                if (def.canEquip(data, item)) {
+                    anyAllowed = true;
+                    break;
+                }
+            } else {
+                // 2. YAML Check (Fallback)
+                if (checkYamlEquip(def, item)) {
+                    anyAllowed = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasRestrictions)
             return true;
-        ClassDefinition def = classDefOpt.get();
+        return anyAllowed;
+    }
 
+    private boolean checkYamlEquip(ClassDefinition def, ItemStack item) {
         if (def.getEquipment() == null)
             return true;
 
@@ -103,7 +134,8 @@ public class EquipmentService implements Listener {
         if (isWeapon(item)) {
             List<String> allowed = def.getEquipment().getAllowWeapons();
             if (allowed != null && !allowed.isEmpty()) {
-                return allowed.stream().anyMatch(itemType::equalsIgnoreCase);
+                if (allowed.stream().noneMatch(itemType::equalsIgnoreCase))
+                    return false;
             }
         }
 
@@ -111,10 +143,10 @@ public class EquipmentService implements Listener {
         if (isArmor(item)) {
             List<String> allowed = def.getEquipment().getAllowArmors();
             if (allowed != null && !allowed.isEmpty()) {
-                return allowed.stream().anyMatch(itemType::equalsIgnoreCase);
+                if (allowed.stream().noneMatch(itemType::equalsIgnoreCase))
+                    return false;
             }
         }
-
         return true;
     }
 
@@ -131,8 +163,6 @@ public class EquipmentService implements Listener {
     }
 
     private String getItemTypeString(ItemStack item) {
-        // 실제로는 아이템 메타데이터나 NBT에서 타입을 가져와야 함.
-        // 여기서는 단순하게 마인크래프트 재질 이름을 기반으로 유추.
         String name = item.getType().name();
         if (name.contains("SWORD"))
             return "SWORD";

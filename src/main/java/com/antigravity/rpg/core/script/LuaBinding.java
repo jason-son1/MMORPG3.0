@@ -15,13 +15,16 @@ public class LuaBinding {
     private static com.antigravity.rpg.feature.combat.CombatService combatService;
     private static com.antigravity.rpg.core.engine.hook.MythicMobsHook mythicMobsHook;
     private static com.antigravity.rpg.core.engine.hook.ModelEngineHook modelEngineHook;
+    private static com.antigravity.rpg.feature.player.PlayerProfileService profileService;
 
     public static void init(com.antigravity.rpg.feature.combat.CombatService cs,
             com.antigravity.rpg.core.engine.hook.MythicMobsHook mmh,
-            com.antigravity.rpg.core.engine.hook.ModelEngineHook meh) {
+            com.antigravity.rpg.core.engine.hook.ModelEngineHook meh,
+            com.antigravity.rpg.feature.player.PlayerProfileService pps) {
         combatService = cs;
         mythicMobsHook = mmh;
         modelEngineHook = meh;
+        profileService = pps;
     }
 
     /**
@@ -167,26 +170,115 @@ public class LuaBinding {
             table.set("giveResource", new org.luaj.vm2.lib.ThreeArgFunction() {
                 @Override
                 public LuaValue call(LuaValue self, LuaValue resName, LuaValue amount) {
-                    if (entity instanceof org.bukkit.entity.Player) {
-                        // We need PlayerData. But PlayerData is not directly accessible here easily
-                        // without profile service.
-                        // However, if we assume PlayerData is attached or we look it up...
-                        // Actually, we can't easily look up PlayerData without PlayerProfileService.
-                        // But earlier we saw `PlayerData` holds Logic.
-                        // Maybe pass `PlayerData` in `wrap` if available?
-                        // Or use a static look up if possible?
-                        // `LuaBinding` doesn't have `PlayerProfileService`.
-                        // I'll skip implementation or just log warning for now as I don't want to make
-                        // `LuaBinding` too heavy.
-                        // WAIT, Requirement demands it.
-                        // LuaScriptService has `plugin`, I can potentially get service there.
-                        // But `LuaBinding` is static.
-                        // I will add PlayerProfileService to `init`. (Assuming I can update init
-                        // method)
+                    if (entity instanceof org.bukkit.entity.Player player && profileService != null) {
+                        try {
+                            com.antigravity.rpg.feature.player.PlayerData pd = profileService
+                                    .getProfileSync(player.getUniqueId());
+                            if (pd != null) {
+                                String res = resName.tojstring().toLowerCase();
+                                double val = amount.todouble();
+                                if (res.equals("mana")) {
+                                    double max = pd.getStat("MAX_MANA", 100.0);
+                                    pd.setMana(Math.min(max, pd.getMana() + val));
+                                } else if (res.equals("stamina")) {
+                                    double max = pd.getStat("MAX_STAMINA", 100.0);
+                                    pd.setStamina(Math.min(max, pd.getStamina() + val));
+                                }
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
                     return LuaValue.NIL;
                 }
             });
+
+            // Player Class Data API
+            if (entity instanceof org.bukkit.entity.Player player && profileService != null) {
+                // getClassLevel(type)
+                table.set("getClassLevel", new org.luaj.vm2.lib.TwoArgFunction() {
+                    @Override
+                    public LuaValue call(LuaValue self, LuaValue typeVal) {
+                        try {
+                            com.antigravity.rpg.feature.player.PlayerData pd = profileService
+                                    .getProfileSync(player.getUniqueId());
+                            if (pd != null) {
+                                com.antigravity.rpg.feature.player.ClassType type = com.antigravity.rpg.feature.player.ClassType
+                                        .valueOf(typeVal.optjstring("MAIN").toUpperCase());
+                                com.antigravity.rpg.feature.player.ClassProgress cp = pd.getClassData()
+                                        .getActiveProgress(type);
+                                return LuaValue.valueOf(cp != null ? cp.getLevel() : 1);
+                            }
+                        } catch (Exception e) {
+                        }
+                        return LuaValue.valueOf(1);
+                    }
+                });
+
+                // getClassId(type)
+                table.set("getClassId", new org.luaj.vm2.lib.TwoArgFunction() {
+                    @Override
+                    public LuaValue call(LuaValue self, LuaValue typeVal) {
+                        try {
+                            com.antigravity.rpg.feature.player.PlayerData pd = profileService
+                                    .getProfileSync(player.getUniqueId());
+                            if (pd != null) {
+                                com.antigravity.rpg.feature.player.ClassType type = com.antigravity.rpg.feature.player.ClassType
+                                        .valueOf(typeVal.optjstring("MAIN").toUpperCase());
+                                String id = pd.getClassData().getClassId(type);
+                                return id != null ? LuaValue.valueOf(id) : LuaValue.NIL;
+                            }
+                        } catch (Exception e) {
+                        }
+                        return LuaValue.NIL;
+                    }
+                });
+
+                // setClass(type, classId)
+                table.set("setClass", new org.luaj.vm2.lib.ThreeArgFunction() {
+                    @Override
+                    public LuaValue call(LuaValue self, LuaValue typeVal, LuaValue idVal) {
+                        try {
+                            com.antigravity.rpg.feature.player.PlayerData pd = profileService
+                                    .getProfileSync(player.getUniqueId());
+                            if (pd != null) {
+                                com.antigravity.rpg.feature.player.ClassType type = com.antigravity.rpg.feature.player.ClassType
+                                        .valueOf(typeVal.optjstring("MAIN").toUpperCase());
+                                pd.getClassData().setClass(type, idVal.tojstring());
+                                pd.markDirty();
+                                return LuaValue.TRUE;
+                            }
+                        } catch (Exception e) {
+                        }
+                        return LuaValue.FALSE;
+                    }
+                });
+
+                // addClassExp(type, amount)
+                table.set("addClassExp", new org.luaj.vm2.lib.ThreeArgFunction() {
+                    @Override
+                    public LuaValue call(LuaValue self, LuaValue typeVal, LuaValue amountVal) {
+                        try {
+                            com.antigravity.rpg.feature.player.PlayerData pd = profileService
+                                    .getProfileSync(player.getUniqueId());
+                            if (pd != null) {
+                                com.antigravity.rpg.feature.player.ClassType type = com.antigravity.rpg.feature.player.ClassType
+                                        .valueOf(typeVal.optjstring("MAIN").toUpperCase());
+                                com.antigravity.rpg.feature.player.ClassProgress cp = pd.getClassData()
+                                        .getActiveProgress(type);
+                                if (cp != null) {
+                                    cp.addExperience(amountVal.todouble());
+                                    // TODO: Check Level Up Logic here or trigger event
+                                    pd.markDirty();
+                                    return LuaValue.TRUE;
+                                }
+                            }
+                        } catch (Exception e) {
+                        }
+                        return LuaValue.FALSE;
+                    }
+                });
+            }
         }
 
         // isMythicMob()

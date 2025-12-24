@@ -17,17 +17,23 @@ public class StatCalculator {
 
     private final StatRegistry statRegistry;
     private final ExpressionEngine expressionEngine;
+    private final com.antigravity.rpg.feature.classes.ClassRegistry classRegistry;
 
     // 틱 단위 캐시: Map<HolderUUID, Map<StatId, Value>>
     private final Map<UUID, Map<String, Double>> tickCache = new ConcurrentHashMap<>();
+
+    // [NEW] 틱 단위 직업 스탯 캐시 (Lua 결과 캐싱)
+    private final Map<UUID, ClassStatCacheEntry> classStatCache = new ConcurrentHashMap<>();
 
     // 순환 참조 감지용 스택 (스레드별로 현재 계산 중인 스탯 ID 추적)
     private final ThreadLocal<java.util.Set<String>> calculationStack = ThreadLocal.withInitial(java.util.HashSet::new);
 
     @Inject
-    public StatCalculator(StatRegistry statRegistry, ExpressionEngine expressionEngine) {
+    public StatCalculator(StatRegistry statRegistry, ExpressionEngine expressionEngine,
+            com.antigravity.rpg.feature.classes.ClassRegistry classRegistry) {
         this.statRegistry = statRegistry;
         this.expressionEngine = expressionEngine;
+        this.classRegistry = classRegistry;
     }
 
     /**
@@ -73,27 +79,92 @@ public class StatCalculator {
             // 1. 기본값 및 원본 데이터 가져오기 (장비, 영구 보너스 등)
             double baseValue = getRawValue(holder, statId, def);
 
-            // 2. 직업 기반 성장 보너스 계산
+            // 2. 직업 기반 성장/스탯 계산 (Lua 우선, Multi-Class 100% + 30%)
             if (holder instanceof com.antigravity.rpg.feature.player.PlayerData pd) {
-                String classId = pd.getClassId();
-                if (classId != null && !classId.isEmpty()) {
-                    var classDefOpt = com.antigravity.rpg.feature.player.PlayerData.getClassRegistry()
-                            .getClass(classId);
-                    if (classDefOpt.isPresent()) {
-                        var cDef = classDefOpt.get();
+                // 캐시 확인 및 생성
+                ClassStatCacheEntry cacheEntry = classStatCache.get(pd.getUuid());
+                if (cacheEntry == null) {
+                    Map<String, Double> totalStats = new java.util.HashMap<>();
+                    java.util.Set<String> handled = new java.util.HashSet<>();
 
-                        // 성장 스탯 합산: total = base(attributes.base) + eval(formula, level)
-                        if (cDef.getGrowth() != null && cDef.getGrowth().getPerLevel() != null) {
-                            String growthExpr = cDef.getGrowth().getPerLevel().get(statId);
-                            if (growthExpr != null) {
-                                if (isNumeric(growthExpr)) {
-                                    double growthValue = Double.parseDouble(growthExpr);
-                                    int level = pd.getLevel();
-                                    baseValue += (level - 1) * growthValue;
-                                } else {
-                                    // 수식 평가 (예: "2 + (level * 0.5)")
-                                    double evaluatedGrowth = expressionEngine.evaluate(growthExpr, holder);
-                                    baseValue += evaluatedGrowth;
+                    var activeClasses = pd.getClassData().getActiveClasses();
+                    if (activeClasses != null) {
+                        for (Map.Entry<com.antigravity.rpg.feature.player.ClassType, String> entry : activeClasses
+                                .entrySet()) {
+                            com.antigravity.rpg.feature.player.ClassType type = entry.getKey();
+                            String cId = entry.getValue();
+                            if (cId == null || cId.isEmpty())
+                                continue;
+
+                            double multiplier = (type == com.antigravity.rpg.feature.player.ClassType.MAIN) ? 1.0
+                                    : (type == com.antigravity.rpg.feature.player.ClassType.SUB ? 0.3 : 0.0);
+
+                            if (multiplier <= 0)
+                                continue;
+
+                            // 레벨 가져오기
+                            int level = 1;
+                            var cp = pd.getClassData().getProgress(cId);
+                            if (cp != null)
+                                level = cp.getLevel();
+
+                            var cDefOpt = classRegistry.getClass(cId);
+                            if (cDefOpt.isPresent()) {
+                                var cDef = cDefOpt.get();
+                                Map<String, Double> luaStats = cDef.calculateStats(pd, level);
+                                if (luaStats != null) {
+                                    // Lua 스탯 합산
+                                    for (Map.Entry<String, Double> stat : luaStats.entrySet()) {
+                                        totalStats.merge(stat.getKey(), stat.getValue() * multiplier, Double::sum);
+                                    }
+                                    handled.add(cId);
+                                }
+                            }
+                        }
+                    }
+                    cacheEntry = new ClassStatCacheEntry(totalStats, handled);
+                    classStatCache.put(pd.getUuid(), cacheEntry);
+                }
+
+                // A. Lua 계산된 스탯 적용
+                baseValue += cacheEntry.totalStats.getOrDefault(statId, 0.0);
+
+                // B. Lua 로직이 없는 클래스에 대해 YAML 성장 로직 수행
+                var activeClasses = pd.getClassData().getActiveClasses();
+                if (activeClasses != null) {
+                    for (Map.Entry<com.antigravity.rpg.feature.player.ClassType, String> entry : activeClasses
+                            .entrySet()) {
+                        String cId = entry.getValue();
+                        if (cId == null || cId.isEmpty())
+                            continue;
+
+                        // 이미 Lua로 처리된 클래스는 스킵
+                        if (cacheEntry.handled.contains(cId))
+                            continue;
+
+                        double multiplier = (entry.getKey() == com.antigravity.rpg.feature.player.ClassType.MAIN) ? 1.0
+                                : (entry.getKey() == com.antigravity.rpg.feature.player.ClassType.SUB ? 0.3 : 0.0);
+                        if (multiplier <= 0)
+                            continue;
+
+                        int level = 1;
+                        var cp = pd.getClassData().getProgress(cId);
+                        if (cp != null)
+                            level = cp.getLevel();
+
+                        var cDefOpt = classRegistry.getClass(cId);
+                        if (cDefOpt.isPresent()) {
+                            var cDef = cDefOpt.get();
+                            if (cDef.getGrowth() != null && cDef.getGrowth().getPerLevel() != null) {
+                                String growthExpr = cDef.getGrowth().getPerLevel().get(statId);
+                                if (growthExpr != null) {
+                                    double growthVal = 0.0;
+                                    if (isNumeric(growthExpr)) {
+                                        growthVal = Double.parseDouble(growthExpr) * (level - 1);
+                                    } else { // 수식 평가
+                                        growthVal = expressionEngine.evaluate(growthExpr, holder);
+                                    }
+                                    baseValue += growthVal * multiplier;
                                 }
                             }
                         }
@@ -102,30 +173,13 @@ public class StatCalculator {
             }
 
             // 3. 파생 스탯 보너스(Bonuses) 적용
-            // "source" -> "target" 공식이 있다면, holder.getStat(source)를 조회하여 공식 적용
-            // 주의: 순환 참조 방지를 위해 calculateStat 내부에서는 getStat(source)를 신중하게 호출해야 하지만,
-            // 여기서는 getStat(source)가 캐시를 타므로 무한 루프만 없다면 괜찮음.
-            // 하지만 getStat(source)가 다시 이 calculateStat(target)을 부르는 구조면 스택 오버플로우.
-            // 보통 Primary(힘) -> Secondary(공격력) 구조이므로 상호 참조는 설정 단계에서 막아야 함.
-
             for (StatRegistry.StatBonus bonus : statRegistry.getBonuses()) {
                 if (bonus.getTarget().equals(statId)) {
-                    // source 값을 가져옴 -> getStat 재귀 호출
-                    // 순환 참조 감지: 이미 계산 중인 스탯이면 건너뜀
                     if (calculationStack.get().contains(bonus.getSource())) {
-                        // 순환 참조 발생 - 기본값 0으로 처리하고 경고 로깅
                         continue;
                     }
 
                     double sourceValue = getStat(holder, bonus.getSource());
-
-                    // 공식에서 "source" 변수에 sourceValue를 주입하기 위해 임시 변수 치환
-                    // 하지만 ExpressionEngine.evaluate(formula, holder)는 {var} 형태를 holder에서 찾음.
-                    // 여기서는 "source"라는 특정 변수명을 값으로 치환해서 전달해야 함.
-                    // 편의상 수식 문자열 자체를 replace하거나,
-                    // ExpressionEngine에 setVariable 기능을 외부에서 쓸 수 있게 해야 하는데,
-                    // 현재 evaluate 인터페이스는 holder만 받음.
-                    // 간단한 해결책: 수식 내 "source"를 숫자값으로 치환해버리기.
                     String safeFormula = bonus.getFormula().replace("source", String.valueOf(sourceValue));
                     baseValue += expressionEngine.evaluateFormula(safeFormula, holder);
                 }
@@ -172,7 +226,7 @@ public class StatCalculator {
         if (holder instanceof PlayerDataFunc) {
             return ((PlayerDataFunc) holder).getRawStat(statId);
         }
-        return def.getDefaultValue();
+        return def != null ? def.getDefaultValue() : 0.0;
     }
 
     /**
@@ -180,14 +234,24 @@ public class StatCalculator {
      */
     public void clearCache() {
         tickCache.clear();
+        classStatCache.clear();
     }
 
     private UUID getHolderId(StatHolder holder) {
         if (holder instanceof com.antigravity.rpg.feature.player.PlayerData) {
             return ((com.antigravity.rpg.feature.player.PlayerData) holder).getUuid();
         }
-        // 다른 타입의 Holder가 추가될 경우 여기에 로직 확장 가능
         return null;
+    }
+
+    private static class ClassStatCacheEntry {
+        final Map<String, Double> totalStats;
+        final java.util.Set<String> handled;
+
+        ClassStatCacheEntry(Map<String, Double> totalStats, java.util.Set<String> handled) {
+            this.totalStats = totalStats;
+            this.handled = handled;
+        }
     }
 
     /**

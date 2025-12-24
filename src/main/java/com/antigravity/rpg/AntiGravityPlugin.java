@@ -148,6 +148,10 @@ public class AntiGravityPlugin extends JavaPlugin {
                                                                                 com.antigravity.rpg.core.engine.StatRegistry.class)));
                         }
 
+                        // [NEW] PlayerTickTask 시작 (1틱 주기)
+                        injector.getInstance(com.antigravity.rpg.feature.player.PlayerTickTask.class).runTaskTimer(this,
+                                        1L, 1L);
+
                         if (getCommand("skilltree") != null) {
                                 getCommand("skilltree").setExecutor(injector.getInstance(
                                                 com.antigravity.rpg.command.player.SkillTreeCommand.class));

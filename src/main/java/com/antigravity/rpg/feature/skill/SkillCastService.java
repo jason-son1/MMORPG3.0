@@ -163,6 +163,19 @@ public class SkillCastService implements Service {
             // ScriptRunner를 통해 파이프라인 시작
             scriptRunner.run(skill, ctx);
 
+            // [NEW] Lua Hook: onSkillCast (모든 활성 직업에 대해 트리거)
+            if (data.getClassData().getActiveClasses() != null) {
+                data.getClassData().getActiveClasses().values().forEach(cId -> {
+                    if (cId != null && !cId.isEmpty()) {
+                        com.antigravity.rpg.feature.player.PlayerData.getClassRegistry().getClass(cId)
+                                .ifPresent(def -> {
+                                    def.onEvent("onSkillCast", data, skillId);
+                                    def.onEvent("on_skill_cast", data, skillId);
+                                });
+                    }
+                });
+            }
+
             // 시전 성공 알림
             player.sendActionBar(net.kyori.adventure.text.Component.text(skill.getName() + " 시전!",
                     net.kyori.adventure.text.format.NamedTextColor.GREEN));

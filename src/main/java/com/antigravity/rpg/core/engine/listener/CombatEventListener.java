@@ -62,6 +62,46 @@ public class CombatEventListener implements Listener {
 
             // 계산된 최종 데미지를 이벤트에 반영
             event.setDamage(context.getFinalDamage());
+
+            // [NEW] Lua Hooks Trigger
+            triggerLuaHooks(attacker, victim, context.getFinalDamage());
+        }
+    }
+
+    private void triggerLuaHooks(Entity attacker, Entity victim, double damage) {
+        // 1. 공격자 Hook (onDamageDealt)
+        if (attacker instanceof org.bukkit.entity.Player pAttacker) {
+            try {
+                com.antigravity.rpg.feature.player.PlayerData pd = playerProfileService
+                        .getProfileSync(pAttacker.getUniqueId());
+                if (pd != null) {
+                    pd.getClassData().getActiveClasses().values().forEach(classId -> {
+                        com.antigravity.rpg.feature.player.PlayerData.getClassRegistry().getClass(classId)
+                                .ifPresent(def -> {
+                                    def.onEvent("onDamageDealt", attacker, victim, damage);
+                                    def.onEvent("onHit", attacker, victim, damage); // Alias
+                                });
+                    });
+                }
+            } catch (Exception e) {
+            }
+        }
+
+        // 2. 피해자 Hook (onDamageTaken)
+        if (victim instanceof org.bukkit.entity.Player pVictim) {
+            try {
+                com.antigravity.rpg.feature.player.PlayerData pd = playerProfileService
+                        .getProfileSync(pVictim.getUniqueId());
+                if (pd != null) {
+                    pd.getClassData().getActiveClasses().values().forEach(classId -> {
+                        com.antigravity.rpg.feature.player.PlayerData.getClassRegistry().getClass(classId)
+                                .ifPresent(def -> {
+                                    def.onEvent("onDamageTaken", attacker, victim, damage);
+                                });
+                    });
+                }
+            } catch (Exception e) {
+            }
         }
     }
 

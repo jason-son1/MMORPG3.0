@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * MMORPG 3.0 직업 시스템의 핵심 관리 클래스입니다.
  * YAML 설정 파일을 읽어 ClassDefinition을 생성하고, 직업 간 상속 및 유효성 검사를 수행합니다.
+ * [UPDATED] LuaClassManager와 연동하여 외부 등록(register)을 지원하며, 자동 YAML 로딩은 비활성화되었습니다.
  */
 @Singleton
 public class ClassRegistry {
@@ -24,12 +25,31 @@ public class ClassRegistry {
     @Inject
     public ClassRegistry(AntiGravityPlugin plugin) {
         this.plugin = plugin;
-        loadClasses();
+        // [MODIFIED] 생성자에서 자동 로드 제거. LuaClassManager가 로드 주도.
+        // loadClasses();
     }
 
     public void reload() {
         classes.clear();
-        loadClasses();
+        // [MODIFIED] reload 시에도 자동 로드하지 않음. 외부에서 다시 register 호출 필요.
+    }
+
+    /**
+     * 외부(LuaClassManager 등)에서 직업을 직접 등록할 때 사용합니다.
+     */
+    public void register(ClassDefinition def) {
+        if (def != null && def.getKey() != null) {
+            classes.put(def.getKey(), def);
+        }
+    }
+
+    /**
+     * 모든 직업 등록 후 상속 관계를 해결하기 위해 호출합니다.
+     */
+    public void resolveAll() {
+        // 상속 구조 해결 (_global_defaults -> novice -> parent -> child)
+        resolveInheritance(classes);
+        plugin.getLogger().info("직업 상속 구조 해결 완료.");
     }
 
     private void loadClasses() {

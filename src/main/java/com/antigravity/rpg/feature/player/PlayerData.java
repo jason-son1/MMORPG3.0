@@ -29,6 +29,10 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder,
     // 리소스 풀 (마나, 스태미나 등)
     private final ResourcePool resources;
 
+    // [NEW] 직업 슬롯 및 진행도 데이터
+    @Getter
+    private final PlayerClassData classData = new PlayerClassData();
+
     // 마지막 전투 시간 (밀리초, 전투 상태 확인용)
     private long lastCombatTime = 0L;
 
@@ -39,8 +43,6 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder,
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
         // 기본값 초기화
-        this.data.put("level", 1);
-        this.data.put("experience", 0.0);
         this.data.put("skillLevels", new ConcurrentHashMap<String, Integer>());
         this.data.put("professions", new ConcurrentHashMap<String, Integer>());
         this.data.put("skillCooldowns", new ConcurrentHashMap<String, Number>());
@@ -87,21 +89,31 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder,
 
     // --- 타입 안전 래퍼 메서드 (Type-Safe Wrappers) ---
     public String getClassId() {
-        return (String) data.get("classId");
+        String main = classData.getClassId(ClassType.MAIN);
+        return main != null ? main : "";
     }
 
     public void setClassId(String classId) {
-        data.put("classId", classId != null ? classId : "");
+        classData.setClass(ClassType.MAIN, classId);
+        markDirty();
     }
 
     public int getLevel() {
-        Number n = (Number) data.getOrDefault("level", 1);
-        return n.intValue();
+        ClassProgress cp = classData.getActiveProgress(ClassType.MAIN);
+        return cp != null ? cp.getLevel() : 1;
     }
 
     public void setLevel(int level) {
-        data.put("level", level);
-        markDirty();
+        // MAIN 클래스 레벨 설정 (없으면 진행도 생성됨)
+        String mainId = getClassId();
+        if (mainId == null || mainId.isEmpty())
+            return;
+
+        ClassProgress cp = classData.getProgress(mainId);
+        if (cp != null) {
+            cp.setLevel(level);
+            markDirty();
+        }
     }
 
     public int getSkillPoints() {
@@ -115,13 +127,20 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder,
     }
 
     public double getExperience() {
-        Number n = (Number) data.getOrDefault("experience", 0.0);
-        return n.doubleValue();
+        ClassProgress cp = classData.getActiveProgress(ClassType.MAIN);
+        return cp != null ? cp.getExperience() : 0.0;
     }
 
     public void setExperience(double experience) {
-        data.put("experience", experience);
-        markDirty();
+        String mainId = getClassId();
+        if (mainId == null || mainId.isEmpty())
+            return;
+
+        ClassProgress cp = classData.getProgress(mainId);
+        if (cp != null) {
+            cp.setExperience(experience);
+            markDirty();
+        }
     }
 
     public ResourcePool getResources() {
@@ -201,6 +220,9 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder,
         data.put("currentMana", resources.getCurrentMana());
         data.put("currentStamina", resources.getCurrentStamina());
 
+        // [NEW] ClassData 저장
+        data.put("playerClassData", classData.toMap());
+
         return data;
     }
 
@@ -246,6 +268,31 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder,
             if (pd.data.containsKey("currentStamina")) {
                 Number s = (Number) pd.data.get("currentStamina");
                 pd.resources.setCurrentStamina(s.doubleValue());
+            }
+
+            // [NEW] ClassData 복구 및 마이그레이션
+            if (pd.data.containsKey("playerClassData")) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> classDataMap = (Map<String, Object>) pd.data.get("playerClassData");
+                PlayerClassData loadedClassData = PlayerClassData.fromMap(classDataMap);
+
+                // loadedClassData 내용을 pd.classData에 복사 (final 필드이므로)
+                pd.classData.getActiveClasses().putAll(loadedClassData.getActiveClasses());
+                pd.classData.getClassProgressMap().putAll(loadedClassData.getClassProgressMap());
+            } else {
+                // 기존 데이터 마이그레이션 (level, experience, classId)
+                String oldClassId = (String) pd.data.get("classId");
+                if (oldClassId != null && !oldClassId.isEmpty()) {
+                    int oldLevel = ((Number) pd.data.getOrDefault("level", 1)).intValue();
+                    double oldExp = ((Number) pd.data.getOrDefault("experience", 0.0)).doubleValue();
+
+                    pd.classData.setClass(ClassType.MAIN, oldClassId);
+                    ClassProgress cp = pd.classData.getProgress(oldClassId);
+                    if (cp != null) { // setClass 내부에서 생성됨
+                        cp.setLevel(oldLevel);
+                        cp.setExperience(oldExp);
+                    }
+                }
             }
 
             // 실시간 수정을 위한 가변성 보장

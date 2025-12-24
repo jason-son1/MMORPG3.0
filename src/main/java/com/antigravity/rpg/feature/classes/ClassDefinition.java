@@ -37,6 +37,96 @@ public class ClassDefinition {
     private GUIDisplay guiDisplay; // GUI 표시 메타데이터
     private SkillTree skillTree; // [NEW] 스킬 트리 시스템
 
+    // [NEW] Lua 기반 엔진 연동 handle
+    private org.luaj.vm2.LuaValue luaHandle;
+
+    // [NEW] Lua Delegate Methods
+
+    /**
+     * Lua 스크립트를 통해 스탯을 계산합니다.
+     * 
+     * @return 계산된 스탯 맵 (Lua 함수가 없으면 null 반환하여 기본 로직 사용 유도)
+     */
+    public Map<String, Double> calculateStats(com.antigravity.rpg.feature.player.PlayerData playerData, int level) {
+        if (luaHandle != null && !luaHandle.isnil()) {
+            org.luaj.vm2.LuaValue func = luaHandle.get("calculate_stats");
+            if (!func.isnil() && func.isfunction()) {
+                org.luaj.vm2.LuaValue pData = org.luaj.vm2.lib.jse.CoerceJavaToLua.coerce(playerData);
+                org.luaj.vm2.LuaValue lvl = org.luaj.vm2.LuaValue.valueOf(level);
+                org.luaj.vm2.LuaValue result = func.call(pData, lvl);
+
+                if (result.istable()) {
+                    Map<String, Double> stats = new java.util.HashMap<>();
+                    org.luaj.vm2.LuaTable table = result.checktable();
+                    org.luaj.vm2.LuaValue k = org.luaj.vm2.LuaValue.NIL;
+                    while (true) {
+                        org.luaj.vm2.Varargs n = table.next(k);
+                        if ((k = n.arg1()).isnil())
+                            break;
+                        org.luaj.vm2.LuaValue v = n.arg(2);
+                        stats.put(k.tojstring(), v.todouble());
+                    }
+                    return stats;
+                }
+            }
+        }
+        return null;
+    }
+
+    public boolean canEquip(com.antigravity.rpg.feature.player.PlayerData playerData,
+            org.bukkit.inventory.ItemStack item) {
+        if (luaHandle != null && !luaHandle.isnil()) {
+            org.luaj.vm2.LuaValue func = luaHandle.get("can_equip");
+            if (!func.isnil() && func.isfunction()) {
+                org.luaj.vm2.LuaValue pData = org.luaj.vm2.lib.jse.CoerceJavaToLua.coerce(playerData);
+                org.luaj.vm2.LuaValue itm = org.luaj.vm2.lib.jse.CoerceJavaToLua.coerce(item);
+                org.luaj.vm2.LuaValue result = func.call(pData, itm);
+                if (result.isboolean()) {
+                    return result.toboolean();
+                }
+            }
+        }
+        // Lua 함수가 없으면 기본 컴포넌트(EquipmentRules) 체크를 위해 true 반환 (이후 호출 측에서 체크)
+        // 단, 여기서는 ClassDefinition이 '거부'하지 않는다는 의미로 true 리턴
+        return true;
+    }
+
+    public boolean canPromoteTo(com.antigravity.rpg.feature.player.PlayerData playerData, String targetClassId) {
+        if (luaHandle != null && !luaHandle.isnil()) {
+            org.luaj.vm2.LuaValue func = luaHandle.get("can_promote_to");
+            if (!func.isnil() && func.isfunction()) {
+                org.luaj.vm2.LuaValue pData = org.luaj.vm2.lib.jse.CoerceJavaToLua.coerce(playerData);
+                org.luaj.vm2.LuaValue tClass = org.luaj.vm2.LuaValue.valueOf(targetClassId);
+                org.luaj.vm2.LuaValue result = func.call(pData, tClass);
+                if (result.isboolean()) {
+                    return result.toboolean();
+                }
+            }
+        }
+        return true;
+    }
+
+    public void onEvent(String eventName, Object... args) {
+        if (luaHandle != null && !luaHandle.isnil()) {
+            org.luaj.vm2.LuaValue func = luaHandle.get(eventName);
+            if (!func.isnil() && func.isfunction()) {
+                org.luaj.vm2.LuaValue[] luaArgs = new org.luaj.vm2.LuaValue[args.length];
+                for (int i = 0; i < args.length; i++) {
+                    luaArgs[i] = org.luaj.vm2.lib.jse.CoerceJavaToLua.coerce(args[i]);
+                }
+                func.invoke(luaArgs);
+            }
+        }
+    }
+
+    public boolean hasLuaMethod(String methodName) {
+        if (luaHandle != null && !luaHandle.isnil()) {
+            org.luaj.vm2.LuaValue func = luaHandle.get(methodName);
+            return !func.isnil() && func.isfunction();
+        }
+        return false;
+    }
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
