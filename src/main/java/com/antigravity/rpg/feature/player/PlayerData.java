@@ -249,11 +249,14 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
     // --- 스탯 및 클래스 로직 연동 ---
     private static com.antigravity.rpg.core.engine.StatCalculator statCalculator;
     private static com.antigravity.rpg.feature.classes.ClassRegistry classRegistry;
+    private static com.antigravity.rpg.feature.classes.condition.ConditionManager conditionManager;
 
     public static void initialize(com.antigravity.rpg.core.engine.StatCalculator sc,
-            com.antigravity.rpg.feature.classes.ClassRegistry cr) {
+            com.antigravity.rpg.feature.classes.ClassRegistry cr,
+            com.antigravity.rpg.feature.classes.condition.ConditionManager cm) {
         statCalculator = sc;
         classRegistry = cr;
+        conditionManager = cm;
     }
 
     public static com.antigravity.rpg.feature.classes.ClassRegistry getClassRegistry() {
@@ -285,6 +288,11 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
 
     @Override
     public double getRawStat(String statId) {
+        // 0. 레벨 정보 우선 처리
+        if (statId.equalsIgnoreCase("level")) {
+            return (double) getLevel();
+        }
+
         // 1. 저장된 추가 스탯 (스탯 포인트 등)
         double val = getSavedStats().getOrDefault(statId, 0.0);
 
@@ -329,12 +337,14 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
      * 플레이어의 스탯을 재계산하고 필요 시 UI를 업데이트합니다.
      */
     public void recalculateStats() {
-        // 현재는 실시간 계산 방식(getStat 호출 시 계산)이므로
-        // 최대 체력 변경 등 변화가 필요한 사항이 있다면 여기서 처리합니다.
         org.bukkit.entity.Player p = org.bukkit.Bukkit.getPlayer(uuid);
         if (p == null)
             return;
 
+        // 1. 마스터리 보너스 업데이트
+        updateMasteryBonuses(p);
+
+        // 2. 최대 체력 동기화
         double maxHealth = getStat("MAX_HEALTH", 20.0);
         AttributeInstance attrInstance = null;
         try {
@@ -351,6 +361,34 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
         }
 
         // 추가적인 스탯 동기화 로직...
+    }
+
+    private void updateMasteryBonuses(org.bukkit.entity.Player player) {
+        // 기존 마스터리 보너스 초기화 (마스터리 전용 Modifier를 구분해서 관리하면 좋지만, 여기서는 단순화)
+        // 실제 운영 시에는 'mastery_' 접두사 등을 붙여 관리하는 것이 안전함.
+
+        String cId = getClassId();
+        if (cId == null || cId.isEmpty() || classRegistry == null || conditionManager == null)
+            return;
+
+        classRegistry.getClass(cId).ifPresent(def -> {
+            if (def.getEquipment() != null && def.getEquipment().getMasteryBonus() != null) {
+                for (com.antigravity.rpg.feature.classes.ClassDefinition.MasteryBonus bonus : def.getEquipment()
+                        .getMasteryBonus()) {
+                    if (conditionManager.check(this, bonus.getCondition(), player)) {
+                        // 조건 충족 시 보너스 적용
+                        if (bonus.getStats() != null) {
+                            bonus.getStats().forEach(this::addModifier);
+                        }
+                    } else {
+                        // 조건 미충족 시 보너스 제거
+                        if (bonus.getStats() != null) {
+                            bonus.getStats().forEach(this::removeModifier);
+                        }
+                    }
+                }
+            }
+        });
     }
 
     @Override

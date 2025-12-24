@@ -70,20 +70,20 @@ public class StatCalculator {
                 if (classDefOpt.isPresent()) {
                     var cDef = classDefOpt.get();
 
-                    // 성장 스탯 합산: total = base + (level - 1) * growth_value
+                    // 성장 스탯 합산: total = base(attributes.base) + eval(formula, level)
                     if (cDef.getGrowth() != null && cDef.getGrowth().getPerLevel() != null) {
                         String growthExpr = cDef.getGrowth().getPerLevel().get(statId);
                         if (growthExpr != null) {
-                            double growthValue;
                             if (isNumeric(growthExpr)) {
-                                growthValue = Double.parseDouble(growthExpr);
+                                double growthValue = Double.parseDouble(growthExpr);
+                                int level = pd.getLevel();
+                                baseValue += (level - 1) * growthValue;
                             } else {
-                                // Lua 수식 지원 (예: "50 + level * 2.5")
-                                growthValue = expressionEngine.evaluate(growthExpr, holder);
+                                // 수식 평가 (예: "2 + (level * 0.5)")
+                                // 수식 평가 결과 자체가 추가될 총량임
+                                double evaluatedGrowth = expressionEngine.evaluate(growthExpr, holder);
+                                baseValue += evaluatedGrowth;
                             }
-
-                            int level = pd.getLevel();
-                            baseValue += (level - 1) * growthValue;
                         }
                     }
                 }

@@ -1,7 +1,6 @@
 package com.antigravity.rpg.feature.classes;
 
 import com.antigravity.rpg.AntiGravityPlugin;
-import com.antigravity.rpg.core.config.ConfigDirectoryLoader;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.bukkit.configuration.ConfigurationSection;
@@ -10,7 +9,6 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * MMORPG 3.0 직업 시스템의 핵심 관리 클래스입니다.
@@ -21,12 +19,10 @@ public class ClassRegistry {
 
     private final Map<String, ClassDefinition> classes = new ConcurrentHashMap<>();
     private final AntiGravityPlugin plugin;
-    private final ConfigDirectoryLoader configLoader;
 
     @Inject
-    public ClassRegistry(AntiGravityPlugin plugin, ConfigDirectoryLoader configLoader) {
+    public ClassRegistry(AntiGravityPlugin plugin) {
         this.plugin = plugin;
-        this.configLoader = configLoader;
         loadClasses();
     }
 
@@ -39,68 +35,81 @@ public class ClassRegistry {
         File classDir = new File(plugin.getDataFolder(), "classes");
         if (!classDir.exists()) {
             classDir.mkdirs();
-            // 기본 파일 생성이 필요할 수 있으나 생략
         }
 
-        Map<String, YamlConfiguration> configs = configLoader.loadAll(classDir);
+        // 1단계: 재귀적으로 모든 YAML 파일 로드
         Map<String, ClassDefinition> rawDefinitions = new HashMap<>();
+        loadRecursive(classDir, rawDefinitions);
 
-        // 1단계: 모든 파일로부터 로우 데이터 파싱
-        for (Map.Entry<String, YamlConfiguration> entry : configs.entrySet()) {
-            YamlConfiguration config = entry.getValue();
-            for (String key : config.getKeys(false)) {
-                if (config.isConfigurationSection(key)) {
-                    ConfigurationSection section = config.getConfigurationSection(key);
-                    ClassDefinition def = parseDefinition(key, section);
-                    rawDefinitions.put(key, def);
-                } else if (configs.size() == 1 || entry.getKey().equals(key)) {
-                    // 파일 자체가 하나의 직업 정의인 경우 (파일명이 key)
-                    ClassDefinition def = parseDefinition(entry.getKey(), config);
-                    rawDefinitions.put(entry.getKey(), def);
-                    break;
-                }
-            }
-        }
-
-        // 2단계: 상속 구조 해결
+        // 2단계: 상속 구조 해결 (_global_defaults -> novice -> parent -> child)
         resolveInheritance(rawDefinitions);
 
-        // 3단계: 유효성 검사 및 등록
+        // 3단계: 유효성 검사 및 최종 등록
         for (ClassDefinition def : rawDefinitions.values()) {
             if (validateDefinition(def)) {
                 classes.put(def.getKey(), def);
             }
         }
 
-        plugin.getLogger().info("성공적으로 " + classes.size() + "개의 직업을 로드했습니다.");
+        plugin.getLogger().info("성공적으로 " + classes.size() + "개의 직업을 로드했습니다. (재귀 로딩 및 상속 적용)");
     }
 
-    private ClassDefinition parseDefinition(String key, ConfigurationSection section) {
+    /**
+     * 디렉터리를 재귀적으로 탐색하여 직업 설정 파일을 로드합니다.
+     */
+    private void loadRecursive(File dir, Map<String, ClassDefinition> defs) {
+        File[] files = dir.listFiles();
+        if (files == null)
+            return;
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                loadRecursive(file, defs);
+            } else if (file.getName().endsWith(".yml") || file.getName().endsWith(".yaml")) {
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+                // 파일명을 기본 키로 사용 (파일 내부에 key가 정의되어 있으면 덮어씀)
+                String fileName = file.getName().substring(0, file.getName().lastIndexOf('.'));
+
+                // kebab-case -> camelCase 매핑을 포함한 파싱
+                ClassDefinition def = parseDefinition(fileName, config);
+                defs.put(def.getKey(), def);
+            }
+        }
+    }
+
+    /**
+     * YAML 섹션을 ClassDefinition 객체로 파싱합니다.
+     * kebab-case 키를 지원합니다.
+     */
+    private ClassDefinition parseDefinition(String defaultKey, ConfigurationSection section) {
         ClassDefinition def = new ClassDefinition();
-        def.setKey(key);
+        def.setKey(section.getString("key", defaultKey));
         def.setParent(section.getString("parent"));
-        def.setDisplayName(section.getString("display_name", key));
+        def.setDisplayName(section.getString("display-name", section.getString("display_name", def.getKey())));
         def.setLore(section.getString("lore", ""));
         def.setRole(parseEnum(ClassDefinition.Role.class, section.getString("role"), ClassDefinition.Role.MELEE_DPS));
 
-        // Attributes
+        // Attributes (핵심 속성)
         ConfigurationSection attrSec = section.getConfigurationSection("attributes");
         if (attrSec != null) {
             ClassDefinition.Attributes attr = new ClassDefinition.Attributes();
             attr.setPrimary(attrSec.getString("primary", "STRENGTH"));
-            attr.setCombatStyle(parseEnum(ClassDefinition.CombatStyle.class, attrSec.getString("combat_style"),
+            attr.setCombatStyle(parseEnum(ClassDefinition.CombatStyle.class,
+                    attrSec.getString("combat-style", attrSec.getString("combat_style")),
                     ClassDefinition.CombatStyle.MELEE));
-            attr.setResourceType(parseEnum(ClassDefinition.ResourceType.class, attrSec.getString("resource_type"),
+            attr.setResourceType(parseEnum(ClassDefinition.ResourceType.class,
+                    attrSec.getString("resource-type", attrSec.getString("resource_type")),
                     ClassDefinition.ResourceType.MANA));
             attr.setBase(parseModifierMap(attrSec.getConfigurationSection("base")));
             def.setAttributes(attr);
         }
 
-        // Growth
+        // Growth (성장 시스템)
         ConfigurationSection growthSec = section.getConfigurationSection("growth");
         if (growthSec != null) {
             ClassDefinition.Growth growth = new ClassDefinition.Growth();
-            growth.setPerLevel(parseStringMap(growthSec.getConfigurationSection("per_level")));
+            growth.setPerLevel(parseStringMap(growthSec.getConfigurationSection("per-level"),
+                    growthSec.getConfigurationSection("per_level")));
 
             List<ClassDefinition.Advancement> advancements = new ArrayList<>();
             List<?> advList = growthSec.getList("advancement");
@@ -110,7 +119,12 @@ public class ClassRegistry {
                         Map<String, Object> advMap = (Map<String, Object>) rawMap;
                         ClassDefinition.Advancement adv = new ClassDefinition.Advancement();
                         adv.setLevel(((Number) advMap.getOrDefault("level", 0)).intValue());
-                        adv.setBranches((List<String>) advMap.getOrDefault("branches", new ArrayList<String>()));
+                        Object branchesObj = advMap.get("branches");
+                        if (branchesObj instanceof List<?>) {
+                            adv.setBranches((List<String>) branchesObj);
+                        } else {
+                            adv.setBranches(new ArrayList<>());
+                        }
                         advancements.add(adv);
                     }
                 }
@@ -119,7 +133,7 @@ public class ClassRegistry {
             def.setGrowth(growth);
         }
 
-        // Skills
+        // Skills (스킬 시스템)
         ConfigurationSection skillSec = section.getConfigurationSection("skills");
         if (skillSec != null) {
             ClassDefinition.Skills skills = new ClassDefinition.Skills();
@@ -133,7 +147,7 @@ public class ClassRegistry {
                         Map<String, Object> m = (Map<String, Object>) rawMap;
                         active.add(new ClassDefinition.ActiveSkill(
                                 (String) m.get("id"),
-                                ((Number) m.getOrDefault("unlock_level", 1)).intValue(),
+                                ((Number) m.getOrDefault("unlock-level", m.getOrDefault("unlock_level", 1))).intValue(),
                                 ((Number) m.getOrDefault("slot", 0)).intValue()));
                     }
                 }
@@ -149,7 +163,8 @@ public class ClassRegistry {
                         Map<String, Object> m = (Map<String, Object>) rawMap;
                         passive.add(new ClassDefinition.PassiveSkill(
                                 (String) m.get("id"),
-                                ((Number) m.getOrDefault("unlock_level", 1)).intValue()));
+                                ((Number) m.getOrDefault("unlock-level", m.getOrDefault("unlock_level", 1)))
+                                        .intValue()));
                     }
                 }
             }
@@ -157,22 +172,29 @@ public class ClassRegistry {
             def.setSkills(skills);
         }
 
-        // Equipment
+        // Equipment (장비 및 마스터리)
         ConfigurationSection equipSec = section.getConfigurationSection("equipment");
         if (equipSec != null) {
             ClassDefinition.Equipment equip = new ClassDefinition.Equipment();
-            equip.setAllowWeapons(equipSec.getStringList("allow_weapons"));
-            equip.setAllowArmors(equipSec.getStringList("allow_armors"));
+            equip.setAllowWeapons(equipSec.getStringList("allow-weapons"));
+            if (equip.getAllowWeapons().isEmpty())
+                equip.setAllowWeapons(equipSec.getStringList("allow_weapons"));
+
+            equip.setAllowArmors(equipSec.getStringList("allow-armors"));
+            if (equip.getAllowArmors().isEmpty())
+                equip.setAllowArmors(equipSec.getStringList("allow_armors"));
 
             List<ClassDefinition.MasteryBonus> bonuses = new ArrayList<>();
-            ConfigurationSection masterySec = equipSec.getConfigurationSection("mastery_bonus");
-            if (masterySec != null) {
-                for (String mKey : masterySec.getKeys(false)) {
-                    ConfigurationSection mSub = masterySec.getConfigurationSection(mKey);
-                    if (mSub != null) {
+            List<?> masteryList = equipSec.getList("mastery-bonus");
+            if (masteryList == null)
+                masteryList = equipSec.getList("mastery_bonus");
+
+            if (masteryList != null) {
+                for (Object item : masteryList) {
+                    if (item instanceof Map<?, ?> m) {
                         bonuses.add(new ClassDefinition.MasteryBonus(
-                                mSub.getString("condition"),
-                                parseModifierMap(mSub.getConfigurationSection("stats"))));
+                                (String) m.get("condition"),
+                                parseObjectToModifierMap(m.get("stats"))));
                     }
                 }
             }
@@ -180,16 +202,22 @@ public class ClassRegistry {
             def.setEquipment(equip);
         }
 
-        // AI Behavior
-        ConfigurationSection aiSec = section.getConfigurationSection("ai_behavior");
+        // AI Behavior (AI 행동 패턴)
+        ConfigurationSection aiSec = section.getConfigurationSection("ai-behavior");
+        if (aiSec == null)
+            aiSec = section.getConfigurationSection("ai_behavior");
         if (aiSec != null) {
             ClassDefinition.AIBehavior ai = new ClassDefinition.AIBehavior();
-            ai.setTargetPriority(parseEnum(ClassDefinition.TargetPriority.class, aiSec.getString("target_priority"),
+            ai.setTargetPriority(parseEnum(ClassDefinition.TargetPriority.class,
+                    aiSec.getString("target-priority", aiSec.getString("target_priority")),
                     ClassDefinition.TargetPriority.CLOSEST));
-            ai.setCombatDistance(aiSec.getDouble("combat_distance", 3.0));
+            ai.setCombatDistance(aiSec.getDouble("combat-distance", aiSec.getDouble("combat_distance", 3.0)));
 
             List<ClassDefinition.SkillRotation> rotations = new ArrayList<>();
-            List<?> rotationList = aiSec.getList("skill_rotation");
+            List<?> rotationList = aiSec.getList("skill-rotation");
+            if (rotationList == null)
+                rotationList = aiSec.getList("skill_rotation");
+
             if (rotationList != null) {
                 for (Object item : rotationList) {
                     if (item instanceof Map<?, ?> rawMap) {
@@ -204,11 +232,11 @@ public class ClassRegistry {
             def.setAiBehavior(ai);
         }
 
-        // Synergy
+        // Synergy (파티 시너지)
         ConfigurationSection synergySec = section.getConfigurationSection("synergy");
         if (synergySec != null) {
             ClassDefinition.Synergy synergy = new ClassDefinition.Synergy();
-            synergy.setAuraRange(synergySec.getDouble("aura_range", 10.0));
+            synergy.setAuraRange(synergySec.getDouble("aura-range", synergySec.getDouble("aura_range", 10.0)));
 
             List<ClassDefinition.SynergyEffect> effects = new ArrayList<>();
             List<?> effectList = synergySec.getList("effects");
@@ -231,7 +259,11 @@ public class ClassRegistry {
         return def;
     }
 
+    /**
+     * 상속 관계를 해결하고 상위 설정의 값을 병합합니다.
+     */
     private void resolveInheritance(Map<String, ClassDefinition> defs) {
+        // _global_defaults가 있다면 먼저 로드되도록 처리됨 (parent 체인을 따라감)
         for (ClassDefinition def : defs.values()) {
             if (def.getParent() != null && !def.getParent().isEmpty()) {
                 applyParent(def, defs, new HashSet<>());
@@ -255,33 +287,141 @@ public class ClassRegistry {
             applyParent(parent, all, visited);
         }
 
-        // 데이터 병합 (자식의 값이 우선)
-        if (child.getDisplayName().equals(child.getKey()))
+        // [1] 기본 정보 병합
+        if (child.getDisplayName() == null || child.getDisplayName().equals(child.getKey()))
             child.setDisplayName(parent.getDisplayName());
-        if (child.getLore().isEmpty())
+        if (child.getLore() == null || child.getLore().isEmpty())
             child.setLore(parent.getLore());
+        if (child.getRole() == null)
+            child.setRole(parent.getRole());
 
-        // Attributes 병합
-        if (child.getAttributes() == null)
-            child.setAttributes(parent.getAttributes());
-        else if (parent.getAttributes() != null) {
-            if (child.getAttributes().getBase() == null)
-                child.getAttributes().setBase(parent.getAttributes().getBase());
-            else if (parent.getAttributes().getBase() != null) {
-                parent.getAttributes().getBase().forEach(child.getAttributes().getBase()::putIfAbsent);
+        // [2] Attributes 병합
+        if (child.getAttributes() == null) {
+            child.setAttributes(cloneAttributes(parent.getAttributes()));
+        } else if (parent.getAttributes() != null) {
+            ClassDefinition.Attributes cAttr = child.getAttributes();
+            ClassDefinition.Attributes pAttr = parent.getAttributes();
+
+            if (cAttr.getPrimary() == null)
+                cAttr.setPrimary(pAttr.getPrimary());
+            if (cAttr.getCombatStyle() == null)
+                cAttr.setCombatStyle(pAttr.getCombatStyle());
+            if (cAttr.getResourceType() == null)
+                cAttr.setResourceType(pAttr.getResourceType());
+
+            if (cAttr.getBase() == null) {
+                cAttr.setBase(new HashMap<>(pAttr.getBase()));
+            } else if (pAttr.getBase() != null) {
+                pAttr.getBase().forEach(cAttr.getBase()::putIfAbsent);
             }
         }
 
-        // Skills 병합 (리스트 합치기)
-        if (child.getSkills() == null)
-            child.setSkills(parent.getSkills());
-        else if (parent.getSkills() != null) {
-            child.getSkills().getActive().addAll(parent.getSkills().getActive());
-            child.getSkills().getPassive().addAll(parent.getSkills().getPassive());
-            // 중복 제거 등 필요 시 처리
+        // [3] Growth 병합
+        if (child.getGrowth() == null) {
+            child.setGrowth(cloneGrowth(parent.getGrowth()));
+        } else if (parent.getGrowth() != null) {
+            if (child.getGrowth().getPerLevel() == null) {
+                child.getGrowth().setPerLevel(new HashMap<>(parent.getGrowth().getPerLevel()));
+            } else {
+                parent.getGrowth().getPerLevel().forEach(child.getGrowth().getPerLevel()::putIfAbsent);
+            }
+            if (child.getGrowth().getAdvancement().isEmpty()) {
+                child.getGrowth().setAdvancement(new ArrayList<>(parent.getGrowth().getAdvancement()));
+            }
         }
 
-        // 나머지 필드들도 동일하게 병합 로직 추가 가능
+        // [4] Skills 병합 (리스트 합치기)
+        if (child.getSkills() == null) {
+            child.setSkills(cloneSkills(parent.getSkills()));
+        } else if (parent.getSkills() != null) {
+            child.getSkills().getActive().addAll(parent.getSkills().getActive());
+            child.getSkills().getPassive().addAll(parent.getSkills().getPassive());
+            // TODO: 중복 제거 로직 필요 시 추가
+        }
+
+        // [5] Equipment 병합
+        if (child.getEquipment() == null) {
+            child.setEquipment(cloneEquipment(parent.getEquipment()));
+        } else if (parent.getEquipment() != null) {
+            child.getEquipment().getAllowWeapons().addAll(parent.getEquipment().getAllowWeapons());
+            child.getEquipment().getAllowArmors().addAll(parent.getEquipment().getAllowArmors());
+            child.getEquipment().getMasteryBonus().addAll(parent.getEquipment().getMasteryBonus());
+        }
+
+        // [6] AI Behavior 병합
+        if (child.getAiBehavior() == null) {
+            child.setAiBehavior(cloneAI(parent.getAiBehavior()));
+        }
+
+        // [7] Synergy 병합
+        if (child.getSynergy() == null) {
+            child.setSynergy(cloneSynergy(parent.getSynergy()));
+        }
+    }
+
+    // --- Helper Methods for Deep Cloning during Inheritance ---
+
+    private ClassDefinition.Attributes cloneAttributes(ClassDefinition.Attributes original) {
+        if (original == null)
+            return null;
+        ClassDefinition.Attributes clone = new ClassDefinition.Attributes();
+        clone.setPrimary(original.getPrimary());
+        clone.setCombatStyle(original.getCombatStyle());
+        clone.setResourceType(original.getResourceType());
+        clone.setBase(original.getBase() != null ? new HashMap<>(original.getBase()) : new HashMap<>());
+        return clone;
+    }
+
+    private ClassDefinition.Growth cloneGrowth(ClassDefinition.Growth original) {
+        if (original == null)
+            return null;
+        ClassDefinition.Growth clone = new ClassDefinition.Growth();
+        clone.setPerLevel(original.getPerLevel() != null ? new HashMap<>(original.getPerLevel()) : new HashMap<>());
+        clone.setAdvancement(
+                original.getAdvancement() != null ? new ArrayList<>(original.getAdvancement()) : new ArrayList<>());
+        return clone;
+    }
+
+    private ClassDefinition.Skills cloneSkills(ClassDefinition.Skills original) {
+        if (original == null)
+            return null;
+        ClassDefinition.Skills clone = new ClassDefinition.Skills();
+        clone.setActive(original.getActive() != null ? new ArrayList<>(original.getActive()) : new ArrayList<>());
+        clone.setPassive(original.getPassive() != null ? new ArrayList<>(original.getPassive()) : new ArrayList<>());
+        return clone;
+    }
+
+    private ClassDefinition.Equipment cloneEquipment(ClassDefinition.Equipment original) {
+        if (original == null)
+            return null;
+        ClassDefinition.Equipment clone = new ClassDefinition.Equipment();
+        clone.setAllowWeapons(
+                original.getAllowWeapons() != null ? new ArrayList<>(original.getAllowWeapons()) : new ArrayList<>());
+        clone.setAllowArmors(
+                original.getAllowArmors() != null ? new ArrayList<>(original.getAllowArmors()) : new ArrayList<>());
+        clone.setMasteryBonus(
+                original.getMasteryBonus() != null ? new ArrayList<>(original.getMasteryBonus()) : new ArrayList<>());
+        return clone;
+    }
+
+    private ClassDefinition.AIBehavior cloneAI(ClassDefinition.AIBehavior original) {
+        if (original == null)
+            return null;
+        ClassDefinition.AIBehavior clone = new ClassDefinition.AIBehavior();
+        clone.setTargetPriority(original.getTargetPriority());
+        clone.setCombatDistance(original.getCombatDistance());
+        clone.setSkillRotation(
+                original.getSkillRotation() != null ? new ArrayList<>(original.getSkillRotation()) : new ArrayList<>());
+        return clone;
+    }
+
+    private ClassDefinition.Synergy cloneSynergy(ClassDefinition.Synergy original) {
+        if (original == null)
+            return null;
+        ClassDefinition.Synergy clone = new ClassDefinition.Synergy();
+        clone.setAuraRange(original.getAuraRange());
+        clone.setEffects(original.getEffects() != null ? new ArrayList<>(original.getEffects()) : new ArrayList<>());
+        return clone;
     }
 
     private boolean validateDefinition(ClassDefinition def) {
@@ -313,12 +453,29 @@ public class ClassRegistry {
         return map;
     }
 
-    private Map<String, String> parseStringMap(ConfigurationSection section) {
+    private Map<String, String> parseStringMap(ConfigurationSection section1, ConfigurationSection section2) {
         Map<String, String> map = new HashMap<>();
-        if (section == null)
-            return map;
-        for (String key : section.getKeys(false)) {
-            map.put(key, section.getString(key));
+        if (section1 != null) {
+            for (String key : section1.getKeys(false)) {
+                map.put(key, section1.getString(key));
+            }
+        }
+        if (section2 != null) {
+            for (String key : section2.getKeys(false)) {
+                map.put(key, section2.getString(key));
+            }
+        }
+        return map;
+    }
+
+    private Map<String, Double> parseObjectToModifierMap(Object obj) {
+        Map<String, Double> map = new HashMap<>();
+        if (obj instanceof Map<?, ?> m) {
+            for (Map.Entry<?, ?> entry : m.entrySet()) {
+                if (entry.getValue() instanceof Number n) {
+                    map.put(entry.getKey().toString(), n.doubleValue());
+                }
+            }
         }
         return map;
     }

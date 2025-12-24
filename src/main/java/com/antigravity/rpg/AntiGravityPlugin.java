@@ -27,7 +27,9 @@ public class AntiGravityPlugin extends JavaPlugin {
                         // Initialize PlayerData static references
                         com.antigravity.rpg.feature.player.PlayerData.initialize(
                                         injector.getInstance(com.antigravity.rpg.core.engine.StatCalculator.class),
-                                        injector.getInstance(com.antigravity.rpg.feature.classes.ClassRegistry.class));
+                                        injector.getInstance(com.antigravity.rpg.feature.classes.ClassRegistry.class),
+                                        injector.getInstance(
+                                                        com.antigravity.rpg.feature.classes.condition.ConditionManager.class));
 
                 } catch (Exception e) {
                         getLogger().severe("Failed to initialize Guice Injector! (DI 컨테이너 초기화 실패)");
