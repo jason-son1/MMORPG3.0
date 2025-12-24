@@ -19,6 +19,7 @@ public class PDCAdapter {
     private final NamespacedKey itemTypeKey;
     private final NamespacedKey revisionKey;
 
+    @com.google.inject.Inject
     public PDCAdapter(JavaPlugin plugin) {
         this.plugin = plugin;
         this.skillKey = new NamespacedKey(plugin, "skill_id");
