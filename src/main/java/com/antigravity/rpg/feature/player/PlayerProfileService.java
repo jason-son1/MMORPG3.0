@@ -172,11 +172,15 @@ public class PlayerProfileService extends AbstractCachedRepository<UUID, PlayerD
         return false;
     }
 
+    public PlayerData getProfileSync(UUID uuid) {
+        return find(uuid).getNow(null);
+    }
+
     /**
      * 특정 플레이어의 ECS 컴포넌트를 가져옵니다.
      */
     public <T> T getComponent(UUID uuid, Class<T> componentClass) {
-        PlayerData data = find(uuid).getNow(null);
+        PlayerData data = getProfileSync(uuid);
         if (data == null) {
             return null;
         }

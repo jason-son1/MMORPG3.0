@@ -53,7 +53,12 @@ public class RpgCoreModule extends AbstractModule {
         bind(com.antigravity.rpg.feature.social.PartyManager.class).in(Singleton.class);
         bind(com.antigravity.rpg.feature.loot.LootManager.class).in(Singleton.class);
         bind(com.antigravity.rpg.feature.item.CustomItemFactory.class).in(Singleton.class);
+        bind(com.antigravity.rpg.feature.classes.ClassRegistry.class).asEagerSingleton();
+        bind(com.antigravity.rpg.feature.player.PlayerProfileService.class).in(Singleton.class);
+        bind(com.antigravity.rpg.feature.player.ResourceRegenTask.class).asEagerSingleton();
 
+        bind(com.antigravity.rpg.feature.item.EquipmentService.class).asEagerSingleton();
+        bind(com.antigravity.rpg.feature.social.SynergyTask.class).asEagerSingleton();
         // [NEW] Effect System
         bind(com.antigravity.rpg.feature.skill.effect.EffectFactory.class).in(Singleton.class);
         bind(com.antigravity.rpg.feature.skill.effect.EffectLibrary.class).in(Singleton.class);

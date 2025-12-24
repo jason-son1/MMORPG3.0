@@ -256,6 +256,10 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
         classRegistry = cr;
     }
 
+    public static com.antigravity.rpg.feature.classes.ClassRegistry getClassRegistry() {
+        return classRegistry;
+    }
+
     @Override
     public double getStat(String statId) {
         if (statCalculator == null)
@@ -263,33 +267,46 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder {
         return statCalculator.getStat(this, statId);
     }
 
+    // 외부 스탯 수정자 (시너지, 버프 등)
+    private final Map<String, Double> externalModifiers = new ConcurrentHashMap<>();
+
+    public void addModifier(String statId, double value) {
+        externalModifiers.put(statId, externalModifiers.getOrDefault(statId, 0.0) + value);
+    }
+
+    public void removeModifier(String statId, double value) {
+        double current = externalModifiers.getOrDefault(statId, 0.0);
+        externalModifiers.put(statId, Math.max(0, current - value));
+    }
+
+    public void clearModifiers() {
+        externalModifiers.clear();
+    }
+
     @Override
     public double getRawStat(String statId) {
         // 1. 저장된 추가 스탯 (스탯 포인트 등)
         double val = getSavedStats().getOrDefault(statId, 0.0);
 
-        // 2. 클래스별 기본 스탯 및 성장 가중치 반영
+        // 2. 클래스별 기본 스탯 반영
         String cId = getClassId();
         if (cId != null && !cId.isEmpty() && classRegistry != null) {
             var classDefOpt = classRegistry.getClass(cId);
             if (classDefOpt.isPresent()) {
                 var cDef = classDefOpt.get();
-                // 기본치
-                val += cDef.getBaseAttributes().getOrDefault(statId, 0.0);
-                // 성장치 (레벨당 가중치)
-                double scale = cDef.getScaleAttributes().getOrDefault(statId, 0.0);
-                if (scale != 0) {
-                    int lvl = getLevel();
-                    val += (scale * (lvl - 1));
+                if (cDef.getAttributes() != null && cDef.getAttributes().getBase() != null) {
+                    val += cDef.getAttributes().getBase().getOrDefault(statId, 0.0);
                 }
             }
         }
 
-        // 3. 커스텀 장비 스탯 반영
+        // 3. 외부 수정자 합산 (시너지 등)
+        val += externalModifiers.getOrDefault(statId, 0.0);
+
+        // 4. 커스텀 장비 스탯 반영
         for (org.bukkit.inventory.ItemStack item : equipment.values()) {
             if (item == null || item.getType().isAir())
                 continue;
-            // PDC나 NBT에서 해당 스탯 값을 가져와 합산 (추후 PDCAdapter와 연동)
             val += getItemStat(item, statId);
         }
 

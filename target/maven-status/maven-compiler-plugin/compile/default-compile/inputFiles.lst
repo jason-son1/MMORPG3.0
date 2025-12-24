@@ -24,6 +24,7 @@ E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\core\e
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\model\impl\ModelEngineProvider.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\skill\mechanic\Mechanic.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\core\ecs\SystemManager.java
+E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\player\ResourceRegenTask.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\skill\effect\EffectLibrary.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\experience\MineBlockSource.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\core\ecs\SimpleEntityRegistry.java
@@ -35,6 +36,7 @@ E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\featur
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\skill\flow\FlowStep.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\core\script\ScriptEntity.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\skill\mechanic\impl\ChanceMechanic.java
+E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\social\SynergyTask.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\core\engine\trigger\Trigger.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\skill\target\impl\ConeTargeter.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\core\engine\action\impl\SoundAction.java
@@ -74,6 +76,7 @@ E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\core\e
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\core\engine\action\impl\HealAction.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\skill\condition\impl\PAPIPlaceholderCondition.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\skill\mechanic\MechanicFactory.java
+E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\item\EquipmentService.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\item\CustomItemFactory.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\skill\condition\impl\HealthCondition.java
 E:\Minecraft\minecraft plugin\MMORPG3.0\src\main\java\com\antigravity\rpg\feature\skill\ecs\ProjectileSystem.java

@@ -58,13 +58,40 @@ public class StatCalculator {
 
     private double calculateStat(StatHolder holder, String statId) {
         StatDefinition def = statRegistry.getStat(statId).orElse(null);
-        if (def == null) {
-            // 정의되지 않은 스탯은 원본 데이터에서 조회
-            if (holder instanceof PlayerDataFunc) {
-                return ((PlayerDataFunc) holder).getRawStat(statId);
+
+        // 1. 기본값 및 원본 데이터 가져오기 (장비, 영구 보너스 등)
+        double baseValue = getRawValue(holder, statId, def);
+
+        // 2. 직업 기반 성장 보너스 계산
+        if (holder instanceof com.antigravity.rpg.feature.player.PlayerData pd) {
+            String classId = pd.getClassId();
+            if (classId != null && !classId.isEmpty()) {
+                var classDefOpt = com.antigravity.rpg.feature.player.PlayerData.getClassRegistry().getClass(classId);
+                if (classDefOpt.isPresent()) {
+                    var cDef = classDefOpt.get();
+
+                    // 성장 스탯 합산: total = base + (level - 1) * growth_value
+                    if (cDef.getGrowth() != null && cDef.getGrowth().getPerLevel() != null) {
+                        String growthExpr = cDef.getGrowth().getPerLevel().get(statId);
+                        if (growthExpr != null) {
+                            double growthValue;
+                            if (isNumeric(growthExpr)) {
+                                growthValue = Double.parseDouble(growthExpr);
+                            } else {
+                                // Lua 수식 지원 (예: "50 + level * 2.5")
+                                growthValue = expressionEngine.evaluate(growthExpr, holder);
+                            }
+
+                            int level = pd.getLevel();
+                            baseValue += (level - 1) * growthValue;
+                        }
+                    }
+                }
             }
-            return 0.0;
         }
+
+        if (def == null)
+            return baseValue;
 
         switch (def.getType()) {
             case FORMULA:
@@ -75,13 +102,24 @@ public class StatCalculator {
                 if (holder instanceof NativeStatHolder) {
                     return ((NativeStatHolder) holder).getNativeAttributeValue(def.getNativeAttribute());
                 }
-                return getRawValue(holder, statId, def);
+                return baseValue;
 
             case RESOURCE:
             case SIMPLE:
             case CHANCE:
             default:
-                return getRawValue(holder, statId, def);
+                return baseValue;
+        }
+    }
+
+    private boolean isNumeric(String str) {
+        if (str == null)
+            return false;
+        try {
+            Double.parseDouble(str);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 

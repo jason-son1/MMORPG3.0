@@ -65,9 +65,39 @@ public class SkillCastService implements Service {
                 return;
             }
 
-            // 1. 습득 여부 확인 (데모를 위해 미습득 시 자동 습득)
-            if (!data.getSkillLevels().containsKey(skillId)) {
-                data.getSkillLevels().put(skillId, 1);
+            // 1. 직업별 스킬 사용 가능 여부 확인
+            String classId = data.getClassId();
+            if (classId == null || classId.isEmpty()) {
+                player.sendMessage(Component.text("직업이 없어 스킬을 사용할 수 없습니다.", NamedTextColor.RED));
+                return;
+            }
+
+            var classDefOpt = com.antigravity.rpg.feature.player.PlayerData.getClassRegistry().getClass(classId);
+            if (classDefOpt.isEmpty())
+                return;
+            var cDef = classDefOpt.get();
+
+            // 해당 직업이 배운 스킬인지 확인 (active 스킬 목록 검색)
+            boolean hasSkill = false;
+            if (cDef.getSkills() != null && cDef.getSkills().getActive() != null) {
+                for (var s : cDef.getSkills().getActive()) {
+                    if (s.getId().equalsIgnoreCase(skillId)) {
+                        if (data.getLevel() >= s.getUnlockLevel()) {
+                            hasSkill = true;
+                        } else {
+                            player.sendMessage(
+                                    Component.text("레벨이 부족하여 스킬을 사용할 수 없습니다. (필요 레벨: " + s.getUnlockLevel() + ")",
+                                            NamedTextColor.RED));
+                            return;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (!hasSkill) {
+                player.sendMessage(Component.text("현재 직업에서 사용할 수 없는 스킬입니다.", NamedTextColor.RED));
+                return;
             }
 
             // 2. 재사용 대기시간(Cooldown) 확인
@@ -79,21 +109,31 @@ public class SkillCastService implements Service {
                 return;
             }
 
-            // 3. 소모 자원(Mana, Stamina) 확인
-            if (data.getResources().getCurrentMana() < skill.getManaCost()) {
-                player.sendMessage(Component.text("마나가 부족합니다!", NamedTextColor.RED));
-                return;
-            }
-            if (data.getResources().getCurrentStamina() < skill.getStaminaCost()) {
-                player.sendMessage(Component.text("스태미나가 부족합니다!", NamedTextColor.RED));
-                return;
+            // 3. 소모 자원 확인 (ResourceType에 따라 분기)
+            com.antigravity.rpg.feature.player.ResourcePool pool = data.getResources();
+            com.antigravity.rpg.feature.classes.ClassDefinition.ResourceType rType = cDef.getAttributes()
+                    .getResourceType();
+
+            double cost = skill.getManaCost(); // 기본적으로 mana/cost 필드를 범용 자원량으로 사용
+            if (cost > 0) {
+                boolean success = pool.consume(rType.name(), cost);
+                if (!success) {
+                    player.sendMessage(Component.text(rType.name() + "가 부족합니다!", NamedTextColor.RED));
+                    return;
+                }
             }
 
-            // 4. 자원 소모 및 쿨타임 적용
-            data.getResources().setCurrentMana(data.getResources().getCurrentMana() - skill.getManaCost());
-            data.getResources().setCurrentStamina(data.getResources().getCurrentStamina() - skill.getStaminaCost());
+            // 스태미나 추가 소모 처리 (필요 시)
+            if (skill.getStaminaCost() > 0) {
+                if (!pool.consume("STAMINA", skill.getStaminaCost())) {
+                    player.sendMessage(Component.text("스태미나가 부족합니다!", NamedTextColor.RED));
+                    return;
+                }
+            }
+
+            // 4. 쿨타임 적용
             if (skill.getCooldownMs() > 0) {
-                data.getSkillCooldowns().put(skillId, now + skill.getCooldownMs());
+                data.getSkillCooldowns().put(skillId, now + (long) skill.getCooldownMs());
             }
 
             // 5. 스킬 실행 (SkillCastContext & ScriptRunner 기반)
@@ -112,4 +152,5 @@ public class SkillCastService implements Service {
                     net.kyori.adventure.text.format.NamedTextColor.GREEN));
         });
     }
+
 }
