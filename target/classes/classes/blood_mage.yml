@@ -1,10 +1,11 @@
-name: "Blood Mage"
-description: "Uses health to cast powerful spells."
-role: DPS
+key: "blood_mage"
+parent: "mage"
+display-name: "Blood Mage"
+role: "DPS"
 
 attributes:
-  primary: INTELLIGENCE
-  combatStyle: RANGED
+  primary: "INTELLIGENCE"
+  combat-style: "RANGED"
   base:
     MAX_HEALTH: 100.0
     MAX_MANA: 50.0
@@ -12,31 +13,31 @@ attributes:
     VITALITY: 5.0
 
 growth:
-  perLevel:
+  per-level:
     MAX_HEALTH: "10.0"
     INTELLIGENCE: "2.0"
   advancement: []
 
-resourceSettings:
-  type: MANA
+resource-settings:
+  type: "MANA"
   max: 50.0
-  regenMode: PASSIVE
-  regenAmount: 0.0 # Disable natural mana regen
-  decayAmount: 0.0
+  regen-mode: "PASSIVE"
+  regen-amount: 0.0 # Disable natural mana regen
+  decay-amount: 0.0
 
 skills:
   active:
     - id: "siphon_life"
-      unlockLevel: 1
+      unlock-level: 1
       slot: 0
     - id: "blood_pact"
-      unlockLevel: 5
+      unlock-level: 5
       slot: 1
   passive: []
 
 equipment:
-  allowArmors: 
-    - CLOTH
-  allowWeapons: 
-    - SCYTHE
-  masteryBonus: []
+  allow-armors: 
+    - "CLOTH"
+  allow-weapons: 
+    - "SCYTHE"
+  mastery-bonus: []

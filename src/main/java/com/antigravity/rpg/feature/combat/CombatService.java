@@ -130,6 +130,24 @@ public class CombatService implements Service, Listener {
             victim.getWorld().spawnParticle(org.bukkit.Particle.CRIT, victim.getLocation().add(0, 1, 0), 10);
             victim.getWorld().playSound(victim.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 1.0f);
         }
+
+        // 전투 시간 갱신 (회복 감소 시스템 연동용)
+        updateCombatTime(attacker);
+        updateCombatTime(victim);
+    }
+
+    /**
+     * 플레이어의 전투 시간을 갱신합니다.
+     * PlayerData가 있는 경우에만 동작합니다.
+     */
+    private void updateCombatTime(LivingEntity entity) {
+        if (entity instanceof Player) {
+            Player p = (Player) entity;
+            PlayerData data = playerProfileService.find(p.getUniqueId()).getNow(null);
+            if (data != null) {
+                data.updateCombatTime();
+            }
+        }
     }
 
     /**

@@ -37,10 +37,10 @@ public class HealthRegenSystem implements System {
     }
 
     private void updatePlayerRegen(Player player, PlayerData data, double deltaTime) {
-        // 전투 상태 확인 (예: 최근 5초 내 피격/공격)
-        // CombatStateComponent가 있다면 그것을 참조, 없다면 PlayerData의 필드 참조
-        // 여기서는 임시로 false(비전투)로 가정하거나, PlayerData 확장이 필요함
-        boolean isCombat = false; // TODO: CombatService 또는 CombatStateComponent 연동
+        // 전투 상태 확인: 최근 5초 내 피격/공격 여부 체크
+        long lastCombatTime = data.getLastCombatTime();
+        long now = java.lang.System.currentTimeMillis();
+        boolean isCombat = (now - lastCombatTime) < 5000; // 5초 이내 전투 = 전투 중
 
         // 마나 회복
         double maxMana = data.getStat("MAX_MANA", 100.0);

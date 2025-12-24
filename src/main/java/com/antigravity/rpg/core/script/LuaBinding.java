@@ -91,25 +91,55 @@ public class LuaBinding {
             });
 
             // dealDamage(target, amount, element, type, ignoreImmunity)
+            // Lua에서 호출: caster:dealDamage(target, 10, "FIRE", "SKILL", true)
             table.set("dealDamage", new org.luaj.vm2.lib.VarArgFunction() {
                 @Override
                 public Varargs invoke(Varargs args) {
                     // args: self, target, amount, element, type, ignoreImmunity
-                    // Lua call: caster:dealDamage(target, 10, "FIRE", "SKILL", true)
                     LuaValue targetVal = args.arg(2);
                     double amount = args.arg(3).todouble();
-                    // Extra args ignored for now or mapped to tags if CombatService supports
+                    String element = args.arg(4).optjstring("PHYSICAL");
+                    String type = args.arg(5).optjstring("SKILL");
+                    boolean ignoreImmunity = args.arg(6).optboolean(false);
 
                     if (!targetVal.isnil() && targetVal.istable()) {
-                        // Assuming target is wrapped entity table which has __raw
                         LuaValue raw = targetVal.get("__raw");
-                        Object targetObj = raw.isuserdata() ? raw.touserdata() : raw; // Handle Coerce correctly?
+                        Object targetObj = raw.isuserdata() ? raw.touserdata() : raw;
 
-                        // Better: check if targetVal has UUID and verify
                         if (targetObj instanceof LivingEntity) {
-                            com.antigravity.rpg.core.engine.DamageTag[] tags = new com.antigravity.rpg.core.engine.DamageTag[] {
-                                    com.antigravity.rpg.core.engine.DamageTag.MAGIC };
-                            // TODO: map tags properly
+                            // 태그 매핑: 문자열 -> DamageTag 배열
+                            java.util.List<com.antigravity.rpg.core.engine.DamageTag> tagList = new java.util.ArrayList<>();
+
+                            // 속성 태그 (element)
+                            try {
+                                String upperElement = element.toUpperCase();
+                                if (upperElement.equals("PHYSICAL")) {
+                                    tagList.add(com.antigravity.rpg.core.engine.DamageTag.PHYSICAL);
+                                } else {
+                                    // MAGIC, FIRE, ICE 등은 MAGIC으로 처리
+                                    tagList.add(com.antigravity.rpg.core.engine.DamageTag.MAGIC);
+                                }
+                            } catch (Exception e) {
+                                tagList.add(com.antigravity.rpg.core.engine.DamageTag.PHYSICAL);
+                            }
+
+                            // 데미지 타입 태그 (type)
+                            try {
+                                com.antigravity.rpg.core.engine.DamageTag typeTag = com.antigravity.rpg.core.engine.DamageTag
+                                        .valueOf(type.toUpperCase());
+                                tagList.add(typeTag);
+                            } catch (IllegalArgumentException e) {
+                                // 유효하지 않은 타입은 SKILL로 기본 처리
+                                tagList.add(com.antigravity.rpg.core.engine.DamageTag.SKILL);
+                            }
+
+                            // 면역 무시 옵션
+                            if (ignoreImmunity) {
+                                tagList.add(com.antigravity.rpg.core.engine.DamageTag.IGNORE_DEFENSE);
+                            }
+
+                            com.antigravity.rpg.core.engine.DamageTag[] tags = tagList
+                                    .toArray(new com.antigravity.rpg.core.engine.DamageTag[0]);
 
                             if (combatService != null) {
                                 combatService.dealScriptDamage(living, (LivingEntity) targetObj, amount, tags);

@@ -1,26 +1,48 @@
 # 마법사 직업 정의
-id: MAGE
-name: "마법사"
-# 자원 유형: 마나 (MANA)
-resource-type: MANA
+key: mage
+parent: novice
+display-name: "마법사"
+role: "MAGIC_DPS"
+
+resource-settings:
+  type: MANA
+  max: 100.0
+  regen-mode: PASSIVE
+  regen-amount: 5.0
 
 # 1레벨 기본 능력치
-base-stats:
-  MAX_HEALTH: 12
-  MAGICAL_DAMAGE: 8
-  INT: 15
+attributes:
+  primary: "INT"
+  combat-style: "MAGIC"
+  base:
+    MAX_HEALTH: 12.0
+    MAGICAL_DAMAGE: 8.0
+    INT: 15.0
 
 # 레벨업 시 스탯 증가량
-level-scaling:
-  MAX_HEALTH: 1.2
-  MAGICAL_DAMAGE: 1.0
-  INT: 1.5
+growth:
+  per-level:
+    MAX_HEALTH: "1.2"
+    MAGICAL_DAMAGE: "1.0"
+    INT: "1.5"
+  advancement:
+    - level: 30
+      branches:
+        - "archmage"
+        - "warlock"
 
-# 스킬 트리 정의
-skill-tree:
-  - level: 1
-    skill: "fireball"
-  - level: 5
-    skill: "holy_light"
-  - level: 15
-    skill: "meteor"
+equipment:
+  allow-weapons:
+    - "WAND"
+    - "STAFF"
+  allow-armors:
+    - "CLOTH"
+
+skills:
+  active:
+    - id: "fireball"
+      unlock-level: 1
+    - id: "holy_light"
+      unlock-level: 5
+    - id: "meteor"
+      unlock-level: 15

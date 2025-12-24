@@ -1,0 +1,706 @@
+AntiGravityRPG 사용자 가이드
+AntiGravityRPG는 마인크래프트 서버에 깊이 있는 RPG 요소를 추가하는 플러그인입니다. 
+클래스 시스템, 커스텀 스탯, 스킬 트리, 그리고 Lua 스크립팅을 통한 복잡한 스킬 로직 구현이 가능합니다.
+
+
+1. 설치 및 시작
+플러그인 적용: target/AntiGravityRPG-1.0-SNAPSHOT.jar 파일을 서버의 plugins 폴더에 넣으세요.
+서버 시작: 서버를 구동하면 plugins/AntiGravityRPG 폴더에 기본 설정 파일들이 생성됩니다.
+
+
+필수/권장 의존성:
+ProtocolLib: 패킷 기반 기능(파티클 등)을 위해 필수입니다.
+MythicMobs: 커스텀 몬스터 연동을 위해 권장됩니다.
+ModelEngine: 3D 모델 및 화려한 이펙트 연동을 위해 권장됩니다.
+PlaceholderAPI: 각종 스탯을 표시하기 위해 권장됩니다.
+
+
+2. 주요 기능 및 설정 방법
+
+2.1. 클래스 (Class) 시스템
+
+플레이어의 직업을 정의합니다. 각 클래스는 고유한 스탯, 성장 곡선, 스킬 트리를 가집니다.
+
+설정 위치: plugins/AntiGravityRPG/classes/
+
+
+작성 예시 (archer.yml):
+
+id: "archer"
+display_name: "&a아처"
+lore:
+  - "&7활을 다루는 명사수입니다."
+
+# 기본 스탯 (1레벨 기준)
+base_attributes:
+  strength: 5
+  dexterity: 15
+  intelligence: 3
+
+# 레벨업 당 상승 스탯
+growth:
+  health_per_level: 5
+  mana_per_level: 2
+
+# 전직 조건 (옵션)
+requirements:
+  level: 10
+  money: 1000
+
+
+
+
+2.2. 스탯 (Stats) 시스템
+기본적인 마인크래프트 속성 외에 RPG 고유의 스탯을 정의합니다.
+설정 위치: plugins/AntiGravityRPG/stats/attributes.yml
+주요 스탯:
+strength (힘): 근접 데미지 증가
+dexterity (민첩): 치명타 확률, 회피율 증가
+intelligence (지능): 마나 재생, 스킬 데미지 증가
+defense (방어): 받는 데미지 감소
+2.3. 스킬 (Skills) & 메카닉 (Mechanics)
+이 플러그인의 핵심입니다. 스킬은 Targeter(타겟 설정), Condition(조건), **Mechanic(효과)**의 조합으로 이루어집니다.
+설정 위치: plugins/AntiGravityRPG/skills/
+구조 설명:
+Trigger: 스킬이 발동되는 시점 (예: CAST, ATTACK, HIT)
+Targeter: 누구에게 효과를 줄 것인가 (예: Self, Cone, Radius, RayTrace)
+Mechanic: 무엇을 할 것인가 (예: Damage, Heal, Particle, Sound)
+작성 예시 (ice_bolt.yml - 얼음 화살 발사):
+id: "ice_bolt"
+name: "&b얼음 화살"
+cooldown: 5
+mana_cost: 20
+
+trigger: CAST
+mechanics:
+  - type: SOUND
+    sound: ENTITY_ARROW_SHOOT
+    volume: 1.0
+    pitch: 1.5
+  
+  - type: PROJECTILE # 투사체 발사
+    item: ICE # 투사체 아이템 모양
+    speed: 2.0
+    on_hit: # 맞았을 때 실행할 메카닉
+      - type: DAMAGE
+        amount: 10
+        formula: "10 + (intelligence * 2)" # 수식 지원
+      - type: EFFECT
+        effect: SLOW
+        duration: 60 # 3초 (틱 단위)
+        amplifier: 1
+      - type: PARTICLE
+        particle: SNOWBALL
+        count: 10
+
+
+
+
+2.4. 스킬 트리 (Skill Tree)
+플레이어가 레벨업을 하며 스킬을 찍을 수 있는 GUI 시스템입니다.
+설정 위치: plugins/AntiGravityRPG/classes/ 내부의 클래스 파일에 정의하거나 별도 파일 분리 가능.
+구조: 노드(Node)들이 연결된 형태입니다.
+skill_tree:
+  - id: "basic_shot"
+    skill: "fire_arrow" # skills 폴더의 파일 ID
+    icon: ARROW
+    slot: 10
+    cost: 1
+    
+  - id: "rapid_fire"
+    skill: "rapid_fire"
+    icon: SPECTRAL_ARROW
+    slot: 19
+    cost: 2
+    parent: "basic_shot" # basic_shot을 찍어야 해금됨
+
+
+
+
+2.5. 아이템 (Items) & 장비
+RPG 스탯이 붙은 커스텀 아이템을 생성합니다.
+설정 위치: plugins/AntiGravityRPG/items/
+작성 예시 (legendary_bow.yml):
+id: "legendary_bow"
+material: BOW
+display_name: "&6전설의 활"
+stats:
+  damage: 50
+  crit_chance: 20 # 20%
+  dexterity: 10
+lore:
+  - "&e고대의 힘이 깃든 활입니다."
+
+
+
+
+2.6. Lua 스크립팅 (Advanced)
+YAML 설정만으로 구현하기 힘든 복잡한 로직은 Lua 스크립트를 사용합니다.
+설정 위치: plugins/AntiGravityRPG/lua/ 또는 scripts/
+활용: 스킬 데미지 공식, 특수 조건 등을 코딩으로 제어.
+예시 (vampire_logic.lua):
+function onHit(attacker, victim, damage)
+    -- 피해량의 20%만큼 체력 회복
+    local healAmount = damage * 0.2
+    attacker:heal(healAmount)
+    attacker:sendMessage("체력을 " .. healAmount .. "만큼 흡수했습니다!")
+end
+
+
+
+
+3. 인게임 명령어 (Commands)
+플레이어용
+/rpg class: 전직 GUI를 엽니다.
+/rpg skills: 스킬 트리 GUI를 엽니다.
+/rpg stats: 자신의 스탯 정보를 확인합니다.
+/rpg party: 파티 관리 메뉴를 엽니다.
+/rpg quest: 퀘스트 목록을 확인합니다.
+관리자용 (OP)
+/rpgadmin reload: 설정 파일을 다시 불러옵니다.
+/rpgadmin item give [플레이어] [아이템ID]: 커스텀 아이템을 지급합니다.
+/rpgadmin class set [플레이어] [클래스ID]: 강제로 직업을 변경합니다.
+/rpgadmin exp give [플레이어] [양]: 경험치를 지급합니다.
+/rpgadmin sync: 데이터베이스와 데이터를 동기화합니다 (MySQL 사용 시).
+4. 고급 기능: 이펙트와 모델링
+파티클 및 이펙트
+effects 폴더에 정의된 프리셋을 스킬에서 불러와 사용할 수 있습니다.
+HelixMechanic: 나선형으로 올라가는 파티클.
+SlashMechanic: 검기 등을 표현하는 베기 이펙트.
+ModelEngineEffect: ModelEngine 플러그인의 3D 모델을 소환하거나 애니메이션을 재생합니다.
+수식 엔진 (Math Engine)
+데미지나 힐량 계산 시 수학 공식을 사용할 수 있습니다.
+변수: level (플레이어 레벨), str (힘), dex (민첩), int (지능), hp, max_hp 등.
+예시: formula: "(damage * 1.5) + (str * 0.5)"
+5. 팁 및 주의사항
+데이터 저장: 기본적으로 YamlFileManager를 사용하지만, 대규모 서버의 경우 HikariDatabaseService(MySQL)를 config.yml에서 활성화하여 사용하는 것이 좋습니다.
+충돌 방지: 스킬 이름이나 아이템 ID는 영문 소문자와 언더바(_)만 사용하는 것을 권장합니다 (예: fire_ball O, Fire Ball X).
+MythicMobs 연동: 몬스터 드랍 테이블(loot/mobs_drop.yml)을 설정할 때 MythicMobs의 내부 이름을 정확히 기재해야 합니다.
+6. 분야별 상세 가이드: 클래스 (Class)
+AntiGravityRPG의 클래스 시스템은 단순한 직업 선택을 넘어, 스탯 성장, 전직 트리, 고유 리소스(마나 등), 그리고 스킬 트리를 통합 관리하는 핵심 기능입니다.
+6.1. 파일 구조 및 기본 설정
+모든 클래스 설정 파일은 plugins/AntiGravityRPG/classes/ 폴더 내에 .yml 파일로 저장됩니다.
+기본 예시 (paladin.yml):
+id: "paladin"               # 시스템 내부에서 사용하는 고유 ID (중복 불가)
+display_name: "&e성기사"     # 인게임에 표시되는 이름 (색상 코드 지원)
+group: "warrior_line"       # 클래스 그룹 (아이템 착용 제한 등에 사용)
+lore:                       # 클래스 설명 (전직 GUI에 표시)
+  - "&f신성한 힘으로 아군을 보호하고"
+  - "&f적을 심판하는 전사입니다."
+
+# 전직 조건 (상위 직업일 경우 설정)
+requirements:
+  parent: "warrior"         # 이전 단계 직업 (Warrior -> Paladin)
+  level: 30                 # 전직에 필요한 레벨
+  money: 5000               # 전직 비용
+  item: "holy_relic"        # (선택) 전직에 필요한 아이템 ID
+
+# 기본 스탯 (1레벨 기준 시작 스탯)
+base_attributes:
+  max_health: 20            # 기본 체력
+  max_mana: 100             # 기본 마나
+  strength: 5               # 힘
+  defense: 10               # 방어력
+
+# 성장 스탯 (레벨업 당 자동으로 오르는 수치)
+growth:
+  max_health: 2.0           # 레벨업당 체력 +2
+  max_mana: 5.0             # 레벨업당 마나 +5
+  strength: 0.5             # 2레벨업당 힘 +1 꼴
+
+# 리소스 설정 (마나/기력 등)
+resource:
+  type: MANA                # 종류: MANA, ENERGY, RAGE, STAMINA
+  regen: 5                  # 초당 회복량
+  color: BLUE               # 보스바 색상
+
+
+
+
+6.2. 스킬 트리 (Skill Tree) 구성
+클래스 파일 내부에는 해당 직업이 배울 수 있는 스킬 트리를 gui 섹션과 skills 섹션을 통해 정의합니다.
+skill_tree:
+  gui_title: "&e성기사 스킬 트리"
+  rows: 4
+  
+  nodes:
+    # 1. 기본 스킬: 성스러운 일격
+    - id: "holy_strike_node"
+      skill: "holy_strike"    # skills 폴더에 있는 스킬 파일 ID
+      icon: IRON_SWORD        # GUI 아이콘
+      slot: 10                # GUI 슬롯 번호 (0~35)
+      max_level: 5            # 스킬 최대 레벨
+      cost_per_level: 1       # 레벨업당 스킬 포인트 소모량
+      
+    # 2. 연계 스킬: 신의 가호 (성스러운 일격을 3레벨 찍어야 해금)
+    - id: "divine_protection_node"
+      skill: "divine_protection"
+      icon: GOLDEN_CHESTPLATE
+      slot: 19
+      parent: "holy_strike_node" # 부모 노드 ID
+      min_parent_level: 3        # 부모 노드 최소 요구 레벨
+
+
+
+
+6.3. 클래스 유형별 설정 팁
+전사형 (Warrior/Tank):
+base_attributes에서 max_health와 defense를 높게 설정하세요.
+resource 타입을 RAGE(분노)로 설정하여, 피격 시 혹은 타격 시 자원이 차오르게 설정할 수 있습니다 (스크립트 연동 필요).
+마법사형 (Mage/Wizard):
+growth에서 intelligence 수치를 높여 마법 데미지와 마나통을 확보하세요.
+방어력이 낮으므로 skill_tree에 회피기나 보호막 스킬을 배치하는 것이 밸런스에 좋습니다.
+로그형 (Rogue/Assassin):
+dexterity (민첩) 위주의 성장을 설정하여 치명타 확률을 높이세요.
+이동 속도(movement_speed) 스탯을 기본 속성에 추가할 수 있습니다.
+6.4. 전직 시스템 적용 방법
+AntiGravityRPG는 계층형 전직을 지원합니다.
+1차 전직: parent 항목이 없는 클래스 (예: novice.yml). 처음 접속 시 자동으로 할당되거나 /rpg class로 선택.
+2차/3차 전직: requirements 섹션의 parent 필드에 이전 직업 ID를 입력.
+데이터 보존: 전직 시 레벨은 초기화되지 않으며, 누적된 스탯은 growth 설정에 따라 재계산됩니다 (설정에 따라 초기화 옵션 사용 가능).
+7. 분야별 상세 가이드: 스탯 (Stat)
+AntiGravityRPG의 스탯 시스템은 단순히 캐릭터의 강함만 나타내는 것이 아니라, 데미지 공식, 스킬 효과, 장비 착용 조건 등에 광범위하게 사용됩니다. 이 플러그인은 **기본 속성(Attribute)**과 **전투 스탯(Combat Stat)**을 구분하여 관리합니다.
+7.1. 스탯 설정 파일 위치
+기본 속성 정의: plugins/AntiGravityRPG/stats/attributes.yml
+전투 스탯 정의: plugins/AntiGravityRPG/stats/combat.yml
+7.2. 기본 속성 (Attributes)
+플레이어의 기초 능력치를 담당하며, 주로 다른 전투 스탯(공격력 등)을 계산하는 변수로 활용됩니다.
+작성 예시 (attributes.yml):
+# 힘 (Strength)
+strength:
+  display_name: "&c힘"
+  description: 
+    - "&7물리 공격력과 최대 체력을 증가시킵니다."
+  min_value: 0
+  max_value: 9999
+  # 이 스탯이 오를 때 자동으로 적용될 공식 (옵션)
+  modifiers:
+    physical_damage: "value * 1.5" # 힘 1당 물리 데미지 1.5 증가
+    max_health: "value * 2.0"      # 힘 1당 체력 2 증가
+
+# 지능 (Intelligence)
+intelligence:
+  display_name: "&b지능"
+  description:
+    - "&7마법 공격력과 마나를 증가시킵니다."
+  modifiers:
+    magic_damage: "value * 2.0"
+    max_mana: "value * 5.0"
+
+
+
+
+7.3. 전투 스탯 (Combat Stats)
+실제 전투에서 데미지 계산, 회피, 치명타 등에 직접적으로 관여하는 스탯입니다.
+작성 예시 (combat.yml):
+# 물리 공격력 (Physical Damage)
+physical_damage:
+  display_name: "&c물리 공격력"
+  base_value: 1.0 # 기본값
+
+# 치명타 확률 (Critical Chance)
+crit_chance:
+  display_name: "&e치명타 확률"
+  base_value: 5.0 # 기본 5%
+  max_value: 100.0
+  # 포맷 설정 (GUI 표시용)
+  format: "%.1f%%" 
+
+# 방어력 (Defense)
+defense:
+  display_name: "&7방어력"
+  # 방어 공식 적용 방식 (Flat or Percentage)
+  type: FLAT # 데미지에서 수치만큼 뺌
+
+
+
+
+7.4. 스탯 활용법
+A. 데미지 공식에 적용하기
+스킬이나 아이템 설정에서 formula 필드에 스탯 이름을 변수로 사용할 수 있습니다.
+# 스킬 예시
+mechanics:
+  - type: DAMAGE
+    # (기본데미지 10) + (지능 * 2) + (마법공격력)
+    formula: "10 + (intelligence * 2) + magic_damage"
+
+
+
+
+B. 아이템 착용 조건으로 사용하기
+item 설정 파일에서 특정 스탯 이상이어야 착용 가능하도록 제한할 수 있습니다.
+# 아이템 예시 (무거운 갑옷)
+requirements:
+  strength: 50 # 힘 50 이상 착용 가능
+  level: 15
+
+
+
+
+C. PlaceholderAPI 연동
+모든 스탯은 PlaceholderAPI를 통해 채팅창이나 스코어보드에 표시할 수 있습니다.
+%antigravityrpg_stat_strength% : 현재 힘 수치
+%antigravityrpg_stat_crit_chance% : 현재 치명타 확률
+7.5. 스탯 종류 리스트 (기본 제공)
+사용자가 yml 파일에 정의하는 대로 늘어나지만, 시스템 내부적으로 자주 쓰이는 스탯들은 다음과 같습니다.
+기본 4대 스탯:
+strength (STR): 힘
+dexterity (DEX): 민첩
+intelligence (INT): 지능
+wisdom (WIS): 지혜 (주로 힐량/마나회복)
+전투 스탯:
+physical_damage: 물리 데미지
+magic_damage: 마법 데미지
+defense: 방어력
+magic_defense: 마법 저항력
+crit_chance: 치명타 확률 (%)
+crit_damage: 치명타 피해량 (% 혹은 배율)
+dodge_chance: 회피율 (%)
+cooldown_reduction: 쿨타임 감소 (%)
+7.6. 스탯 디버깅
+서버 관리자는 다음 명령어를 통해 스탯 적용 여부를 확인할 수 있습니다.
+/rpg stats [플레이어명]: 해당 플레이어의 전체 스탯 정보(계산된 최종값)를 확인합니다.
+값이 이상하다면 attributes.yml의 modifiers 수식을 점검해 보세요.
+8. 분야별 상세 가이드: 스킬 (Skill)
+AntiGravityRPG의 스킬 시스템은 모듈형 구조를 가지고 있어, 트리거(Trigger), 조건(Condition), 타겟(Targeter), **메카닉(Mechanic)**을 블록 조립하듯이 조합하여 무한한 종류의 스킬을 만들 수 있습니다.
+8.1. 스킬 파일 위치 및 기본 구조
+모든 스킬 파일은 plugins/AntiGravityRPG/skills/ 폴더 내에 .yml 파일로 저장됩니다.
+기본 구조 (Template):
+id: "skill_id"              # 고유 ID (파일 이름과 동일하게 추천)
+name: "&c스킬 이름"          # 스킬창 및 메시지에 표시될 이름
+description:                # 스킬 설명
+  - "&7스킬에 대한 설명을 적습니다."
+  - "&7마나 소모: {mana}"
+
+cooldown: 5.0               # 쿨타임 (초)
+cost:                       # 소모 자원
+  mana: 20                  # 마나 20 소모
+  stamina: 0                # 스태미나 (선택)
+
+trigger: CAST               # 발동 조건 (CAST, ATTACK, HIT 등)
+
+# 시전 조건 (이 조건들을 만족해야 스킬이 나감)
+conditions:
+  - type: HOLDING_ITEM
+    material: DIAMOND_SWORD # 다이아 검을 들고 있어야 함
+
+# 타겟 설정 (누구에게 스킬을 쓸 것인가)
+target:
+  type: RAY_TRACE           # 바라보는 방향의 적
+  range: 10                 # 사거리 10칸
+  hit_players: true         # 플레이어 타격 가능 여부
+
+# 실행할 효과 (Mechanics)
+mechanics:
+  - type: SOUND             # 1. 소리 재생
+    sound: ENTITY_BLAZE_SHOOT
+  
+  - type: DAMAGE            # 2. 데미지 주기
+    amount: 10
+    formula: "10 + (strength * 0.5)"
+
+
+
+
+8.2. 트리거 (Trigger) 종류
+스킬이 언제 발동될지 결정합니다.
+CAST: 플레이어가 단축키(Swap hands 등)나 스킬창을 통해 직접 시전할 때. (액티브 스킬)
+ATTACK: 기본 공격을 할 때 발동. (패시브/평타 강화)
+HIT: 적으로부터 피격당했을 때 발동. (방어형 패시브)
+KILL: 적을 처치했을 때 발동.
+TIMER: 일정 시간마다 자동 발동 (오라 형태).
+8.3. 타겟터 (Targeter) 시스템
+스킬의 효과가 적용될 대상을 찾습니다.
+SELF: 시전 자신.
+TARGET: 현재 바라보고 있는 단일 대상 (RayTrace).
+RADIUS / SPHERE: 시전자 주변 반경 내의 모든 엔티티.
+CONE: 시전자 전방 부채꼴 범위 내의 엔티티.
+RING: 시전자 주변 도넛 모양 범위.
+LOCATION: 특정 좌표 (주로 장판형 스킬).
+8.4. 메카닉 (Mechanic) 상세
+실제 게임 내에서 일어나는 효과를 정의합니다. 메카닉은 리스트 형태로 순차 실행됩니다.
+A. 투사체 (Projectile)
+마법 탄환이나 화살을 발사합니다. 가장 복잡하고 강력한 메카닉 중 하나입니다.
+- type: PROJECTILE
+  item: FIRE_CHARGE         # 투사체 모양 (아이템)
+  velocity: 2.0             # 속도
+  gravity: true             # 중력 적용 여부 (포물선)
+  range: 30                 # 최대 사거리
+  
+  # 투사체가 적중했을 때 실행할 하위 메카닉
+  on_hit:
+    - type: DAMAGE
+      amount: 20
+    - type: PARTICLE
+      particle: EXPLOSION_LARGE
+      
+  # 투사체가 날아가는 동안 실행할 하위 메카닉 (매 틱마다)
+  on_tick:
+    - type: PARTICLE
+      particle: FLAME
+
+
+
+
+B. 데미지 및 회복 (Damage & Heal)
+- type: DAMAGE
+  amount: 0                 # 고정 데미지 (공식 사용 시 0으로 둠)
+  formula: "physical_damage * 1.2" # 스탯 기반 공식
+  element: FIRE             # 속성 (방어력 계산 시 사용 가능)
+
+- type: HEAL
+  amount: 50
+  target: SELF              # 타겟터 오버라이드 가능
+
+
+
+
+C. 이펙트 및 사운드 (Effect & Sound)
+SOUND: 마인크래프트 사운드 재생. (volume, pitch 조절 가능)
+PARTICLE: 기본 파티클 재생.
+EFFECT_LIB: Helix, Slash 등 복잡한 모양의 파티클 프리셋 호출.
+MODEL_ENGINE: ModelEngine 플러그인의 3D 모델 소환/애니메이션 재생.
+8.5. 실전 예시: 메테오 (Meteor)
+범위를 지정하고 일정 시간 후 큰 데미지를 주는 스킬 예시입니다.
+id: "meteor_strike"
+name: "&4메테오 스트라이크"
+cooldown: 30
+trigger: CAST
+
+target:
+  type: RAY_TRACE
+  range: 20
+  # 땅을 바라봐야 함 (블록 타겟팅)
+
+mechanics:
+  # 1. 시전 알림 (마법진 등)
+  - type: PARTICLE
+    particle: SMOKE_LARGE
+    count: 20
+    offset_y: 0.1 # 바닥에 깔림
+    
+  # 2. 딜레이 (하늘에서 떨어지는 시간)
+  - type: DELAY
+    ticks: 40 # 2초 대기
+    
+  # 3. 폭발 및 데미지
+  - type: SOUND
+    sound: ENTITY_GENERIC_EXPLODE
+    volume: 5.0
+    
+  - type: DAMAGE
+    target: SPHERE          # 타겟 지점 기준 반경 타겟팅으로 전환
+    radius: 5.0             # 5칸 반경
+    formula: "magic_damage * 5.0"
+
+
+
+
+이 가이드를 통해 단순한 공격기부터 화려한 광역기까지 다양한 스킬을 제작해 보세요. 다음 섹션에서는 아이템 제작에 대해 다룹니다.
+9. 분야별 상세 가이드: 아이템 (Item)
+AntiGravityRPG의 아이템 시스템은 일반적인 마인크래프트 아이템에 RPG 스탯, 스킬 발동, 착용 제한 등을 부여하여 완전히 새로운 장비로 탈바꿈시킵니다. NBT 태그를 기반으로 작동하므로 다른 플러그인과의 호환성도 뛰어납니다.
+9.1. 아이템 파일 위치
+모든 커스텀 아이템은 plugins/AntiGravityRPG/items/ 폴더 내에 .yml 파일로 생성합니다.
+9.2. 기본 구조 및 설정 (Basic Config)
+가장 기본적인 무기 아이템의 예시입니다.
+예시: legendary_sword.yml
+id: "legendary_sword"       # 아이템 고유 ID (파일 이름 권장)
+material: DIAMOND_SWORD     # 베이스 아이템 재질
+display_name: "&6전설의 용사 검" # 인게임 표시 이름
+lore:                       # 아이템 설명
+  - "&e고대의 힘이 깃든 검입니다."
+  - "&7공격 시 일정 확률로 번개가 칩니다."
+  - ""
+  - "&f공격력: &c+50"
+  - "&f힘: &c+10"
+
+model_data: 1001            # CustomModelData (리소스팩 연동 시 사용)
+unbreakable: true           # 내구도 무한 여부
+tier: "LEGENDARY"           # 아이템 등급 (색상 표시 등에 활용)
+
+# 착용 슬롯 제한 (설정 시 해당 슬롯에서만 스탯 적용)
+slot: MAIN_HAND             # MAIN_HAND, OFF_HAND, HELMET, CHESTPLATE, LEGGINGS, BOOTS
+
+
+
+9.3. 스탯 부여 (Stats)
+아이템을 착용하거나 들고 있을 때 플레이어에게 적용될 스탯을 설정합니다. attributes.yml과 combat.yml에 정의된 모든 스탯을 사용할 수 있습니다.
+stats:
+  physical_damage: 50       # 물리 공격력 +50
+  strength: 10              # 힘 +10
+  crit_chance: 5.0          # 치명타 확률 +5%
+  movement_speed: 0.1       # 이동 속도 증가
+
+
+
+9.4. 착용 조건 (Requirements)
+특정 조건을 만족해야만 아이템을 사용할 수 있도록 제한합니다. 조건 미달 시 스탯이 적용되지 않거나 인벤토리에서 밀려납니다.
+requirements:
+  level: 20                 # 레벨 20 이상
+  class: "warrior"          # 직업이 '전사'여야 함
+  strength: 30              # 힘 스탯 30 이상
+
+
+
+9.5. 아이템 스킬 (Item Skills)
+아이템 자체에 스킬을 내장할 수 있습니다. 예를 들어, 우클릭 시 화염구가 나가거나 공격 시 피를 흡수하는 기능을 넣을 수 있습니다.
+skills:
+  # 1. 우클릭 액티브 스킬
+  - trigger: RIGHT_CLICK    # 우클릭 시 발동
+    skill: "fireball"       # skills 폴더의 스킬 ID
+    cooldown: 10.0          # 아이템 자체 쿨타임 (초)
+    
+  # 2. 공격 시 패시브 (발동 확률 적용)
+  - trigger: ATTACK         # 적 타격 시 발동
+    skill: "lightning_strike"
+    chance: 20.0            # 20% 확률로 발동
+
+
+
+9.6. 소모품 (Consumables) 제작
+포션이나 음식 같은 일회성 아이템도 만들 수 있습니다.
+예시: super_potion.yml
+id: "super_potion"
+material: POTION
+display_name: "&d슈퍼 회복 포션"
+color: "255, 0, 255"        # 포션 색상 (RGB)
+
+mechanics:                  # 사용 시 즉시 발동될 메카닉
+  - type: HEAL
+    amount: 100
+  - type: EFFECT
+    effect: REGENERATION
+    duration: 100
+    amplifier: 2
+
+consume: true               # 사용 후 아이템 제거 여부
+
+
+
+9.7. 명령어
+/rpgadmin item give [플레이어] [아이템ID] [수량]: 아이템 지급
+/rpgadmin item get [아이템ID]: 자신의 인벤토리로 아이템 가져오기
+/rpgadmin item list: 로드된 모든 아이템 목록 확인
+이로써 아이템 시스템의 가이드가 완료되었습니다. 다음 섹션에서는 Lua 스크립트를 활용한 심화 기능에 대해 다루겠습니다.
+10. 분야별 상세 가이드: Lua 스크립트 (Lua Script)
+AntiGravityRPG는 YAML 설정만으로는 구현하기 어려운 복잡한 로직이나 조건부 효과를 처리하기 위해 Lua 스크립트 시스템을 내장하고 있습니다. 이를 통해 사용자는 직접 코딩하듯이 스킬 로직을 짤 수 있습니다.
+10.1. 스크립트 파일 위치
+모든 스크립트 파일은 plugins/AntiGravityRPG/scripts/ 또는 plugins/AntiGravityRPG/lua/ 폴더 내에 .lua 파일로 저장됩니다.
+10.2. 기본 구조 및 함수
+스크립트는 특정 이벤트(Trigger)가 발생했을 때 호출되는 함수 단위로 작성됩니다.
+기본 템플릿:
+-- 스킬이 시전되었을 때 호출 (Trigger: CAST)
+function onCast(caster, level)
+    caster:sendMessage("스킬을 시전했습니다! (레벨: " .. level .. ")")
+    return true -- true 반환 시 스킬 정상 발동
+end
+
+-- 적을 타격했을 때 호출 (Trigger: ATTACK / HIT)
+function onAttack(attacker, victim, damage)
+    -- 여기에 로직 작성
+    attacker:sendMessage(victim:getName() .. "을(를) 공격했습니다!")
+end
+
+
+10.3. 주요 API 객체 및 함수
+스크립트 내에서 사용할 수 있는 주요 변수(객체)와 함수들입니다.
+A. 엔티티 객체 (Entity Object)
+caster, attacker, victim 등의 변수가 이 객체에 해당합니다.
+:getName(): 이름 반환
+:getHealth() / :getMaxHealth(): 체력 정보
+:setHealth(amount): 체력 설정
+:heal(amount): 체력 회복
+:damage(amount): 데미지 입힘
+:sendMessage(text): 메시지 전송
+:getLocation(): 현재 위치 반환
+:teleport(location): 텔레포트
+:playEffect(effectName): 이펙트 재생
+:playSound(soundName, volume, pitch): 소리 재생
+B. 스탯 관련 (Stat API)
+:getStat(statName): 특정 스탯 값 가져오기 (예: :getStat("strength"))
+:addStat(statName, value, duration): 일시적으로 스탯 증가 (버프)
+C. 유틸리티
+print(text): 콘솔에 로그 출력 (디버깅용)
+10.4. 실전 예제
+예제 1: 체력 비례 추가 데미지 (onAttack)
+상대방의 현재 체력이 낮을수록 더 큰 데미지를 주는 "처형" 스킬 로직입니다.
+-- scripts/executioner.lua
+
+function onAttack(attacker, victim, damage)
+    local currentHp = victim:getHealth()
+    local maxHp = victim:getMaxHealth()
+    local missingHpPercent = (maxHp - currentHp) / maxHp
+    
+    -- 잃은 체력 1%당 0.5% 추가 데미지
+    local bonusMultiplier = 1.0 + (missingHpPercent * 0.5)
+    local finalDamage = damage * bonusMultiplier
+    
+    -- 30% 미만일 경우 확정 치명타 메시지
+    if missingHpPercent > 0.7 then
+        attacker:sendMessage("&c&l처형 발동! 강력한 일격!")
+        attacker:playSound("ENTITY_IRON_GOLEM_ATTACK", 1.0, 0.5)
+    end
+    
+    return finalDamage -- 수정된 데미지 반환
+end
+
+
+예제 2: 뱀파이어 흡혈 (onHit)
+공격 시 데미지의 일부를 체력으로 회복합니다.
+-- scripts/vampire.lua
+
+function onAttack(attacker, victim, damage)
+    local lifestealRate = 0.1 -- 10% 흡혈
+    
+    -- 공격자의 'vampirism' 스탯이 있다면 추가 흡혈
+    local statBonus = attacker:getStat("vampirism") or 0
+    lifestealRate = lifestealRate + (statBonus / 100)
+    
+    local healAmount = damage * lifestealRate
+    
+    if healAmount > 0 then
+        attacker:heal(healAmount)
+        -- 흡혈 파티클 효과 (빨간색)
+        attacker:playEffect("REDSTONE_BLOCK_DUST") 
+    end
+end
+
+
+예제 3: 복잡한 조건부 스킬 시전 (onCast)
+특정 아이템을 소모하거나, 특정 바이옴에서만 발동되는 스킬입니다.
+-- scripts/biome_skill.lua
+
+function onCast(caster)
+    local loc = caster:getLocation()
+    local biome = loc:getBiome() -- 예: "DESERT", "PLAINS"
+    
+    -- 사막에서만 사용 가능
+    if biome ~= "DESERT" then
+        caster:sendMessage("&c이 스킬은 사막에서만 사용할 수 있습니다.")
+        return false -- 스킬 시전 취소 (쿨타임 안 돔)
+    end
+    
+    -- 마나 대신 금괴 1개 소모
+    if caster:hasItem("GOLD_INGOT", 1) then
+        caster:removeItem("GOLD_INGOT", 1)
+        caster:sendMessage("&e금괴를 바쳐 고대 마법을 시전합니다!")
+        return true
+    else
+        caster:sendMessage("&c제물(금괴)이 부족합니다.")
+        return false
+    end
+end
+
+
+10.5. 스킬 파일에 스크립트 연결하기
+YAML 스킬 설정 파일에서 mechanics 또는 conditions 섹션에 Lua 스크립트를 연결합니다.
+# skills/executioner_strike.yml
+
+trigger: ATTACK
+mechanics:
+  - type: SCRIPT
+    script: "executioner.lua" # scripts 폴더 내 파일명
+    function: "onAttack"      # 호출할 함수 이름
+
+
+이 Lua 시스템을 활용하면 상상하는 거의 모든 RPG 로직을 구현할 수 있습니다.

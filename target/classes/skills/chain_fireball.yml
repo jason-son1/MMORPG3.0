@@ -1,11 +1,8 @@
 id: chain_fireball
 name: "연쇄 화염구"
 
-requirements:
-  cooldown: 5.0
-  resource:
-    type: STAMINA
-    amount: 20
+cooldown: 5.0
+stamina_cost: 20
 
 mechanics:
   - type: PROJECTILE

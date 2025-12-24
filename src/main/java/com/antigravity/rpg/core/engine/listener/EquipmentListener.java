@@ -2,7 +2,6 @@ package com.antigravity.rpg.core.engine.listener;
 
 import com.antigravity.rpg.feature.gui.EquipmentGUI;
 import com.antigravity.rpg.feature.item.EquipmentSlot;
-import com.antigravity.rpg.feature.player.PlayerData;
 import com.antigravity.rpg.feature.player.PlayerProfileService;
 import com.google.inject.Inject;
 import net.kyori.adventure.text.Component;
@@ -22,11 +21,14 @@ public class EquipmentListener implements Listener {
 
     private final EquipmentGUI equipmentGUI;
     private final PlayerProfileService playerProfileService;
+    private final com.antigravity.rpg.feature.item.EquipmentService equipmentService;
 
     @Inject
-    public EquipmentListener(EquipmentGUI equipmentGUI, PlayerProfileService playerProfileService) {
+    public EquipmentListener(EquipmentGUI equipmentGUI, PlayerProfileService playerProfileService,
+            com.antigravity.rpg.feature.item.EquipmentService equipmentService) {
         this.equipmentGUI = equipmentGUI;
         this.playerProfileService = playerProfileService;
+        this.equipmentService = equipmentService;
     }
 
     @EventHandler
@@ -58,7 +60,12 @@ public class EquipmentListener implements Listener {
 
             // 1. 장착 (커서에 아이템이 있는 경우)
             if (cursorItem != null && !cursorItem.getType().isAir()) {
-                // TODO: 아이템의 요구 레벨, 직업, 슬롯 타입 일치 여부 확인 로직 추가
+                // 아이템의 요구 레벨, 직업, 슬롯 타입 일치 여부 확인
+                if (!equipmentService.canEquip(player, cursorItem)) {
+                    player.sendMessage(
+                            Component.text("해당 장비를 장착할 수 없습니다! 직업이나 레벨이 맞지 않습니다.", NamedTextColor.RED));
+                    return;
+                }
 
                 data.getEquipment().put(equipmentSlot, cursorItem.clone());
                 event.getView().setCursor(currentEquipped); // 기존 아이템을 커서로 (교체)

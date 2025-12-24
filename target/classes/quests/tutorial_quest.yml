@@ -1,9 +1,8 @@
-# 튜토리얼 퀘스트 (Tutorial Quest) 설정
-id: "tutorial_01"
+id: "tutorial_quest"
 name: "새로운 시작"
-description: "모험을 시작하기 위한 기본적인 훈련입니다."
+description:
+  - "모험을 시작하기 위한 기본적인 훈련입니다."
 
-# 퀘스트 목표 리스트
 goals:
   - type: KILL
     target: "ZOMBIE"
@@ -15,7 +14,6 @@ goals:
     amount: 10
     description: "참나무 원목 10개 수집"
 
-# 퀘스트 완료 보상
 rewards:
   - type: EXP
     amount: 100

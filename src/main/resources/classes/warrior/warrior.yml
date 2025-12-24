@@ -13,12 +13,17 @@ role: "TANK"
 attributes:
   primary: "STRENGTH"
   combat-style: "MELEE"
-  resource-type: "RAGE"
   base:
     MAX_HEALTH: 25.0
     PHYSICAL_DAMAGE: 5.0
     DEFENSE: 2.0
-    RAGE_REGEN: 1.0
+
+resource-settings:
+  type: "RAGE"
+  max: 100.0
+  regen-mode: "ACTIVE" # 예시: 피격/공격 시 회복
+  regen-amount: 1.0
+  decay-amount: 0.5 
 
 # [3] 성장 시스템
 growth:

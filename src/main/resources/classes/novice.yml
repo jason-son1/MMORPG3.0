@@ -10,10 +10,17 @@ lore:
 role: "MELEE_DPS"
 
 attributes:
-  resource-type: "STAMINA"
+  primary: "STRENGTH" 
+  combat-style: "MELEE"
   base:
     MAX_HEALTH: 20.0
     PHYSICAL_DAMAGE: 1.0
+
+resource-settings:
+  type: "STAMINA"
+  max: 100
+  regen-mode: "PASSIVE"
+  regen-amount: 5.0
 
 growth:
   per-level:

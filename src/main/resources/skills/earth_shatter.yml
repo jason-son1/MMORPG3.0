@@ -4,12 +4,11 @@ description:
   - "&7주변의 적들을 강타하여"
   - "&c엄청난 피해&7를 입힙니다."
 
-requirements:
-  cooldown: 30.0
-  resource:
-    type: MANA
-    amount: 100
-  item:
+cooldown: 30.0
+mana_cost: 100
+
+conditions:
+  - type: ITEM
     material: NETHERITE_AXE
     slot: HAND
 

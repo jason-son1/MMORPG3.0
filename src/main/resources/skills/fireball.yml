@@ -1,27 +1,21 @@
-# 화염구 (Fireball) 스킬 설정
 id: "fireball"
 name: "화염구"
 description: "불타는 화염구를 발사하여 적중 시 폭발 피해를 입힙니다."
 
-cost:
-  type: MANA
-  amount: 30
-
+mana_cost: 30
 cooldown: 3.0
 
 mechanics:
-  # 투사체 발사
   - type: PROJECTILE
-    material: "RECOVERY_COMPASS" # 아이템으로 투사체 시각화 (예시)
+    material: "RECOVERY_COMPASS"
     speed: 1.5
     max-range: 20
-    # 적중 시 발동할 메카닉 리스트
     on-hit:
       - type: DAMAGE
         base-damage: 15.0
         scaling-stat: "MAGICAL_DAMAGE"
         scaling-factor: 1.2
-        range: 3.0 # 폭발 범위
+        range: 3.0
       - type: SOUND
         sound: "ENTITY_GENERIC_EXPLODE"
         volume: 0.8

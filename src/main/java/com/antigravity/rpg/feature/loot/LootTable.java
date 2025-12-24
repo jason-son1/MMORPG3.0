@@ -14,7 +14,8 @@ public class LootTable {
 
     @Data
     public static class LootEntry {
-        private final String itemId;
+        private final org.bukkit.Material material; // For vanilla items
+        private final String itemId; // For custom items
         private final double chance; // 0.0 ~ 1.0
         private final int minAmount;
         private final int maxAmount;

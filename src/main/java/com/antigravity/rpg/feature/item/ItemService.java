@@ -9,6 +9,8 @@ import org.bukkit.inventory.ItemStack;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
+import com.antigravity.rpg.AntiGravityPlugin;
+import com.antigravity.rpg.core.config.ConfigDirectoryLoader;
 
 /**
  * 아이템 시스템의 핵심 서비스입니다.
@@ -17,30 +19,74 @@ import java.util.logging.Logger;
 @Singleton
 public class ItemService implements Service {
 
+    private final ConfigDirectoryLoader configLoader;
+    private final AntiGravityPlugin plugin;
     private final Logger logger;
     private final ItemGenerator itemGenerator;
     private final PDCAdapter pdcAdapter;
     private final Map<String, ItemTemplate> templates = new HashMap<>();
 
     @Inject
-    public ItemService(Logger logger, ItemGenerator itemGenerator, PDCAdapter pdcAdapter) {
+    public ItemService(AntiGravityPlugin plugin, Logger logger, ItemGenerator itemGenerator, PDCAdapter pdcAdapter,
+            ConfigDirectoryLoader configLoader) {
+        this.plugin = plugin;
         this.logger = logger;
         this.itemGenerator = itemGenerator;
         this.pdcAdapter = pdcAdapter;
+        this.configLoader = configLoader;
     }
 
     @Override
     public void onEnable() {
-        logger.info("[ItemService] 템플릿 로딩 중...");
+        logger.info("[ItemService] Loading templates...");
+        loadItems();
+    }
 
-        // 테스트용 기본 템플릿 예시 등록
-        ItemTemplate sword = new ItemTemplate("starter_sword", Material.IRON_SWORD, "초보자의 검");
-        sword.addStat("PHYSICAL_DAMAGE", 10.0, 0.1, 2.0);
-        sword.addStat("CRITICAL_CHANCE", 5.0, 0.0, 0.0);
-        sword.setRevision(1); // 초기 버전
-        templates.put(sword.getId(), sword);
+    private void loadItems() {
+        templates.clear();
+        java.io.File itemDir = new java.io.File(plugin.getDataFolder(), "items");
+        if (!itemDir.exists())
+            itemDir.mkdirs();
 
-        logger.info("[ItemService] 총 " + templates.size() + "개의 템플릿이 로드되었습니다.");
+        Map<String, org.bukkit.configuration.file.YamlConfiguration> configs = configLoader.loadAll(itemDir);
+        for (org.bukkit.configuration.file.YamlConfiguration config : configs.values()) {
+            String id = config.getString("id");
+            if (id == null)
+                continue;
+
+            String name = net.md_5.bungee.api.ChatColor.translateAlternateColorCodes('&', config.getString("name", id));
+            Material material = Material.matchMaterial(config.getString("material", "STONE"));
+
+            ItemTemplate template = new ItemTemplate(id, material, name);
+
+            // Optional Attributes
+            if (config.contains("slot")) {
+                try {
+                    template.setSlot(EquipmentSlot.valueOf(config.getString("slot")));
+                } catch (Exception ignored) {
+                }
+            }
+            if (config.contains("lore")) {
+                java.util.List<String> lore = config.getStringList("lore");
+                java.util.List<String> colored = new java.util.ArrayList<>();
+                for (String l : lore)
+                    colored.add(net.md_5.bungee.api.ChatColor.translateAlternateColorCodes('&', l));
+                template.setLore(colored);
+            }
+            template.setCustomModelData(config.getInt("custom-model-data", config.getInt("model-id", 0)));
+
+            // Stats
+            if (config.isConfigurationSection("stats")) {
+                org.bukkit.configuration.ConfigurationSection stats = config.getConfigurationSection("stats");
+                for (String key : stats.getKeys(false)) {
+                    double val = stats.getDouble(key);
+                    template.addStat(key, val, 0.0, 0.0); // Simple parsing for now
+                }
+            }
+
+            templates.put(id, template);
+        }
+        logger.info("[ItemService] Loaded " + templates.size() + " item templates.");
     }
 
     @Override

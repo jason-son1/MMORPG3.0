@@ -12,6 +12,11 @@ public class ItemTemplate {
     private final String displayName;
     private int revision = 1;
 
+    // Attributes
+    private com.antigravity.rpg.feature.item.EquipmentSlot slot;
+    private java.util.List<String> lore = new java.util.ArrayList<>();
+    private int customModelData = 0;
+
     // Base Stats: StatID -> Base Value
     private final Map<String, Double> baseStats = new HashMap<>();
 

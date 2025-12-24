@@ -29,6 +29,9 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder,
     // 리소스 풀 (마나, 스태미나 등)
     private final ResourcePool resources;
 
+    // 마지막 전투 시간 (밀리초, 전투 상태 확인용)
+    private long lastCombatTime = 0L;
+
     // [NEW] 커스텀 장비 슬롯
     @Getter
     private final Map<com.antigravity.rpg.feature.item.EquipmentSlot, org.bukkit.inventory.ItemStack> equipment;
@@ -172,6 +175,22 @@ public class PlayerData implements com.antigravity.rpg.core.engine.StatHolder,
 
     public void setLoaded(boolean loaded) {
         data.put("isLoaded", loaded);
+    }
+
+    /**
+     * 마지막 전투 시간을 반환합니다 (밀리초).
+     * 전투 상태 확인에 사용됩니다.
+     */
+    public long getLastCombatTime() {
+        return lastCombatTime;
+    }
+
+    /**
+     * 마지막 전투 시간을 갱신합니다.
+     * 피격/공격 시 호출해야 합니다.
+     */
+    public void updateCombatTime() {
+        this.lastCombatTime = System.currentTimeMillis();
     }
 
     /**

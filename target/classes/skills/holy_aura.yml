@@ -1,8 +1,9 @@
 id: holy_aura
 name: "성스러운 오라"
 
-requirements:
-  class: "PRIEST"
+conditions:
+  - type: CLASS
+    class: "PRIEST"
 
 mechanics:
   - type: LOOP

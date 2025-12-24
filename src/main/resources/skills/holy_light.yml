@@ -1,21 +1,15 @@
-# 신성한 빛 (Holy Light) 스킬 설정
 id: "holy_light"
 name: "신성한 빛"
 description: "자신 또는 아군을 신성한 빛으로 치유합니다."
 
-cost:
-  type: MANA
-  amount: 25
-
+mana_cost: 25
 cooldown: 8.0
 
 mechanics:
-  # 치유 메카닉
   - type: HEAL
     base-amount: 10.0
     scaling-stat: "INT"
     scaling-factor: 0.8
-  # 치유 효과 사운드
   - type: SOUND
     sound: "BLOCK_AMETHYST_BLOCK_CHIME"
     volume: 1.0

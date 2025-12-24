@@ -11,4 +11,4 @@ stats:
   CRITICAL_CHANCE: 1.0
 
 # 시각 요소 (ModelEngine 연동 시 사용)
-model-id: 0
+custom-model-data: 0

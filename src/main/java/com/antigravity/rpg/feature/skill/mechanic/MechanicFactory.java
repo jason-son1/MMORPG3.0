@@ -31,6 +31,7 @@ public class MechanicFactory {
         registry.put("CHANCE", ChanceMechanic.class);
         registry.put("LOOP", LoopMechanic.class);
         registry.put("EFFECT", EffectMechanic.class);
+        registry.put("SCRIPT", ScriptMechanic.class); // Lua 스크립트 실행 메카닉
     }
 
     public Mechanic create(String type) {
