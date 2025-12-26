@@ -68,6 +68,11 @@ public class RpgCoreModule extends AbstractModule {
 
         // [NEW] Commands
         bind(com.antigravity.rpg.command.player.SkillTreeCommand.class).in(Singleton.class);
+
+        // [NEW] Visuals
+        bind(com.antigravity.rpg.core.engine.bridge.VisualProvider.class)
+                .to(com.antigravity.rpg.feature.ui.LuaVisualProvider.class)
+                .in(Singleton.class);
     }
 
     @Provides

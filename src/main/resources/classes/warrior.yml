@@ -1,0 +1,51 @@
+key: warrior
+display-name: "&c전사"
+lore: "&7강력한 체력과 공격력을 가진 근거리 전투가입니다."
+role: TANK
+
+attributes:
+  primary: STRENGTH
+  combat-style: MELEE
+  base:
+    MAX_HEALTH: 100.0
+    STRENGTH: 10.0
+    MAX_RAGE: 100.0
+
+resource-settings:
+  type: RAGE
+  max: 100.0
+  regen-mode: DECAY
+  decay-amount: 2.0  # 비전투 시 1초당 2.0 감소
+
+experience-sources:
+  combat:
+    amount: "{level} * 10"
+    conditions:
+      - "level < 50"
+
+skill-tree:
+  nodes:
+    power_strike:
+      type: ACTIVE
+      max-level: 5
+      points-per-level: 1
+      requirements:
+        - "level >= 1"
+      x: 2
+      y: 1
+    bash:
+      type: ACTIVE
+      max-level: 3
+      points-per-level: 2
+      parent-skills:
+        - power_strike
+      requirements:
+        - "level >= 10"
+      x: 2
+      y: 2
+    iron_skin:
+      type: PASSIVE
+      max-level: 5
+      points-per-level: 1
+      x: 6
+      y: 1

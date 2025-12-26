@@ -106,6 +106,21 @@ public class ClassDefinition {
         return true;
     }
 
+    public boolean canLearnSkill(com.antigravity.rpg.feature.player.PlayerData playerData, String skillId) {
+        if (luaHandle != null && !luaHandle.isnil()) {
+            org.luaj.vm2.LuaValue func = luaHandle.get("can_learn_skill");
+            if (!func.isnil() && func.isfunction()) {
+                org.luaj.vm2.LuaValue pData = org.luaj.vm2.lib.jse.CoerceJavaToLua.coerce(playerData);
+                org.luaj.vm2.LuaValue sId = org.luaj.vm2.LuaValue.valueOf(skillId);
+                org.luaj.vm2.LuaValue result = func.call(pData, sId);
+                if (result.isboolean()) {
+                    return result.toboolean();
+                }
+            }
+        }
+        return true;
+    }
+
     public void onEvent(String eventName, Object... args) {
         if (luaHandle != null && !luaHandle.isnil()) {
             org.luaj.vm2.LuaValue func = luaHandle.get(eventName);

@@ -25,22 +25,59 @@ public class ClassRegistry {
     @Inject
     public ClassRegistry(AntiGravityPlugin plugin) {
         this.plugin = plugin;
-        // [MODIFIED] 생성자에서 자동 로드 제거. LuaClassManager가 로드 주도.
-        // loadClasses();
+        // [MODIFIED] 생성자에서 자동 로드. LuaClassManager가 로드하기 전에 YAML 데이터를 먼저 확보합니다.
+        loadClasses();
     }
 
     public void reload() {
         classes.clear();
-        // [MODIFIED] reload 시에도 자동 로드하지 않음. 외부에서 다시 register 호출 필요.
+        loadClasses();
     }
 
     /**
      * 외부(LuaClassManager 등)에서 직업을 직접 등록할 때 사용합니다.
+     * 이미 존재하는 직업 키라면, 기존 데이터에 병합(Merge)합니다.
      */
     public void register(ClassDefinition def) {
         if (def != null && def.getKey() != null) {
-            classes.put(def.getKey(), def);
+            if (classes.containsKey(def.getKey())) {
+                mergeDefinition(classes.get(def.getKey()), def);
+            } else {
+                classes.put(def.getKey(), def);
+            }
         }
+    }
+
+    private void mergeDefinition(ClassDefinition target, ClassDefinition source) {
+        // Source(보통 Lua)의 데이터로 Target(보통 YAML)을 덮어씁니다.
+        // 단, Source가 null이거나 비어있는 필드는 Target을 유지합니다.
+
+        if (source.getLuaHandle() != null)
+            target.setLuaHandle(source.getLuaHandle());
+        if (source.getDisplayName() != null && !source.getDisplayName().equals(source.getKey()))
+            target.setDisplayName(source.getDisplayName());
+        if (source.getLore() != null && !source.getLore().isEmpty())
+            target.setLore(source.getLore());
+        if (source.getRole() != null)
+            target.setRole(source.getRole());
+
+        // Attributes 병합 (Lua에서 attributes 테이블을 정의했다면 덮어쓰기)
+        if (source.getAttributes() != null) {
+            if (target.getAttributes() == null) {
+                target.setAttributes(source.getAttributes());
+            } else {
+                // 부분 병합
+                if (source.getAttributes().getPrimary() != null)
+                    target.getAttributes().setPrimary(source.getAttributes().getPrimary());
+                if (source.getAttributes().getCombatStyle() != null)
+                    target.getAttributes().setCombatStyle(source.getAttributes().getCombatStyle());
+                // Base stats 등은 Lua에서 보통 calculate_stats로 처리하므로 구조체만 병합
+            }
+        }
+
+        // Parent가 Lua에서 재정의되었다면 변경
+        if (source.getParent() != null)
+            target.setParent(source.getParent());
     }
 
     /**

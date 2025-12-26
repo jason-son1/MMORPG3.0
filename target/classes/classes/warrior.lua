@@ -4,7 +4,7 @@ local Warrior = {
     name = "워리어",
     lore = "강인한 체력과 근접 공격력을 지닌 전사입니다.",
     role = "TANK",
-    parent = "novice", -- 상속 테스트용
+    -- parent = "novice", -- 상속 테스트용
 
     attributes = {
         primary = "STRENGTH",

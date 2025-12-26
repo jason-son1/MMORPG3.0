@@ -58,6 +58,12 @@ public class SkillTreeService {
             }
         }
 
+        // 2a. Lua 커스텀 조건 확인
+        if (!def.canLearnSkill(data, skillId)) {
+            player.sendMessage(Component.text("이 스킬을 배울 수 있는 조건이 아닙니다. (직업 제한)", NamedTextColor.RED));
+            return false;
+        }
+
         // 3. 추가 조건 확인 (ConditionManager)
         if (node.getRequirements() != null) {
             for (String req : node.getRequirements()) {
