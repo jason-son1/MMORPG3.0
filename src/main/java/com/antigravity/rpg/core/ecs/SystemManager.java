@@ -66,7 +66,7 @@ public class SystemManager extends BukkitRunnable implements Service {
     @Override
     public void run() {
         // 1. 매 틱 시작 시 스탯 계산기 캐시 초기화 (성능 최적화)
-        statCalculator.clearCache();
+        statCalculator.clearAllCache();
 
         long currentTime = java.lang.System.currentTimeMillis();
         // 델타 타임 계산 (초 단위)

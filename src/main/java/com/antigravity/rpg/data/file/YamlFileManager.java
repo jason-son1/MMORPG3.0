@@ -28,48 +28,44 @@ public class YamlFileManager {
     }
 
     /**
-     * PlayerData를 YAML 파일로 저장합니다.
-     * 
-     * @param uuid 플레이어 UUID
-     * @param data 저장할 PlayerData 객체
-     * @return 성공 여부
+     * PlayerData를 YAML 파일로 저장합니다. (비동기)
      */
-    public boolean saveToYaml(UUID uuid, PlayerData data) {
-        File file = new File(userdataFolder, uuid.toString() + ".yml");
-        YamlConfiguration config = new YamlConfiguration();
+    public java.util.concurrent.CompletableFuture<Boolean> saveToYaml(UUID uuid, PlayerData data) {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            File file = new File(userdataFolder, uuid.toString() + ".yml");
+            YamlConfiguration config = new YamlConfiguration();
 
-        // PlayerData를 Map으로 변환하여 YAML 설정에 추가
-        Map<String, Object> map = data.toMap();
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            config.set(entry.getKey(), entry.getValue());
-        }
+            // PlayerData를 Map으로 변환하여 YAML 설정에 추가
+            Map<String, Object> map = data.toMap();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                config.set(entry.getKey(), entry.getValue());
+            }
 
-        try {
-            config.save(file);
-            plugin.getLogger().info("[YamlFileManager] " + uuid + "의 데이터를 성공적으로 Export했습니다.");
-            return true;
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "[YamlFileManager] " + uuid + "의 YAML 저장에 실패했습니다.", e);
-            return false;
-        }
+            try {
+                config.save(file);
+                // plugin.getLogger().info("[YamlFileManager] " + uuid + "의 데이터를 성공적으로
+                // Export했습니다.");
+                return true;
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.SEVERE, "[YamlFileManager] " + uuid + "의 YAML 저장에 실패했습니다.", e);
+                return false;
+            }
+        });
     }
 
     /**
-     * 특정 플레이어의 YAML 데이터를 로드합니다.
-     * 
-     * @param uuid 플레이어 UUID
-     * @return 로드된 데이터 Map, 파일이 없거나 실패 시 null
+     * 특정 플레이어의 YAML 데이터를 로드합니다. (비동기)
      */
-    public Map<String, Object> loadFromYaml(UUID uuid) {
-        File file = new File(userdataFolder, uuid.toString() + ".yml");
-        if (!file.exists()) {
-            plugin.getLogger().warning("[YamlFileManager] " + uuid + "의 파일을 찾을 수 없습니다.");
-            return null;
-        }
+    public java.util.concurrent.CompletableFuture<Map<String, Object>> loadFromYaml(UUID uuid) {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            File file = new File(userdataFolder, uuid.toString() + ".yml");
+            if (!file.exists()) {
+                return null;
+            }
 
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-        // deep=true를 통해 하위 계층 데이터를 포함한 모든 값을 가져옵니다.
-        return config.getValues(true);
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+            return config.getValues(true);
+        });
     }
 
     /**

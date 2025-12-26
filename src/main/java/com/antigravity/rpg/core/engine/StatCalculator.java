@@ -19,8 +19,9 @@ public class StatCalculator {
     private final ExpressionEngine expressionEngine;
     private final com.antigravity.rpg.feature.classes.ClassRegistry classRegistry;
 
-    // 틱 단위 캐시: Map<HolderUUID, Map<StatId, Value>>
-    private final Map<UUID, Map<String, Double>> tickCache = new ConcurrentHashMap<>();
+    // Persistent Cache: Map<HolderUUID, Map<StatId, Value>>
+    // Not cleared every tick, but invalidated on dirty events.
+    private final Map<UUID, Map<String, Double>> statCache = new ConcurrentHashMap<>();
 
     // [NEW] 틱 단위 직업 스탯 캐시 (Lua 결과 캐싱)
     private final Map<UUID, ClassStatCacheEntry> classStatCache = new ConcurrentHashMap<>();
@@ -37,6 +38,18 @@ public class StatCalculator {
     }
 
     /**
+     * Mark stats as dirty for a holder, clearing the cache.
+     * Should be called on equipment change, buff application, etc.
+     */
+    public void invalidate(UUID holderId) {
+        statCache.remove(holderId);
+        classStatCache.remove(holderId);
+    }
+
+    // For specific stat invalidation if needed:
+    // public void invalidate(UUID holderId, String statId) { ... }
+
+    /**
      * 대상의 최종 스탯 값을 계산합니다. (캐시 우선 확인)
      * 
      * @param holder 스탯 보유 대상
@@ -48,7 +61,7 @@ public class StatCalculator {
 
         // 1. 캐시 확인
         if (holderId != null) {
-            Map<String, Double> holderCache = tickCache.get(holderId);
+            Map<String, Double> holderCache = statCache.get(holderId);
             if (holderCache != null && holderCache.containsKey(statId)) {
                 return holderCache.get(statId);
             }
@@ -59,7 +72,7 @@ public class StatCalculator {
 
         // 3. 캐시에 저장
         if (holderId != null) {
-            tickCache.computeIfAbsent(holderId, k -> new ConcurrentHashMap<>()).put(statId, result);
+            statCache.computeIfAbsent(holderId, k -> new ConcurrentHashMap<>()).put(statId, result);
         }
 
         return result;
@@ -230,10 +243,11 @@ public class StatCalculator {
     }
 
     /**
-     * 매 틱마다 호출하여 캐시를 초기화해야 합니다.
+     * 매 틱마다 호출하여 캐시를 초기화하던 메서드입니다.
+     * 이제 Dirty Flag 시스템을 사용하므로, 전체 초기화가 필요한 경우에만 사용하세요.
      */
-    public void clearCache() {
-        tickCache.clear();
+    public void clearAllCache() {
+        statCache.clear();
         classStatCache.clear();
     }
 

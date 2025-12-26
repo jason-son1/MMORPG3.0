@@ -1,12 +1,12 @@
 package com.antigravity.rpg.feature.skill.target;
 
-import com.antigravity.rpg.feature.skill.condition.Condition;
+import com.antigravity.rpg.api.skill.Condition;
+import com.antigravity.rpg.api.skill.Targeter;
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import lombok.Builder;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;

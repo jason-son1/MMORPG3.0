@@ -53,9 +53,6 @@ public class AntiGravityPlugin extends JavaPlugin {
                         // 기능별 서비스 (Features)
                         serviceManager.startService(
                                         injector.getInstance(com.antigravity.rpg.core.script.LuaScriptService.class));
-                        serviceManager
-                                        .startService(injector.getInstance(
-                                                        com.antigravity.rpg.core.engine.trigger.TriggerService.class)); // NEW
 
                         // 플레이어 프로필 관리 서비스
                         serviceManager
@@ -94,8 +91,8 @@ public class AntiGravityPlugin extends JavaPlugin {
                         // 시스템 등록
                         systemManager.registerSystem(com.antigravity.rpg.core.ecs.system.HealthRegenSystem.class);
                         systemManager.registerSystem(com.antigravity.rpg.core.ecs.system.CooldownSystem.class);
-                        systemManager.registerSystem(com.antigravity.rpg.feature.skill.ecs.ScriptExecutionSystem.class);
-                        systemManager.registerSystem(com.antigravity.rpg.feature.skill.ecs.ProjectileSystem.class);
+                        systemManager.registerSystem(com.antigravity.rpg.core.ecs.system.ScriptExecutionSystem.class);
+                        systemManager.registerSystem(com.antigravity.rpg.core.ecs.system.ProjectileSystem.class);
 
                         // 매니저 서비스 시작 (게임 루프 가동)
                         serviceManager.startService(systemManager);
@@ -116,12 +113,6 @@ public class AntiGravityPlugin extends JavaPlugin {
                         getServer().getPluginManager().registerEvents(
                                         injector.getInstance(
                                                         com.antigravity.rpg.core.engine.listener.SkillTreeListener.class),
-                                        this);
-
-                        // [NEW] Universal Event Listener 등록
-                        getServer().getPluginManager().registerEvents(
-                                        injector.getInstance(
-                                                        com.antigravity.rpg.core.engine.listener.UniversalEventListener.class),
                                         this);
 
                         // [NEW] MythicMobs Hook 등록

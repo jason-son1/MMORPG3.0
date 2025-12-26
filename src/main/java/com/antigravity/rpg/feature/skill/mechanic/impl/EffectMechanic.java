@@ -3,7 +3,7 @@ package com.antigravity.rpg.feature.skill.mechanic.impl;
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import com.antigravity.rpg.feature.skill.effect.Effect;
 import com.antigravity.rpg.feature.skill.effect.EffectFactory;
-import com.antigravity.rpg.feature.skill.mechanic.Mechanic;
+import com.antigravity.rpg.api.skill.Mechanic;
 import com.google.inject.Inject;
 import org.bukkit.entity.Entity;
 

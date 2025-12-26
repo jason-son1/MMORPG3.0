@@ -1,6 +1,6 @@
 package com.antigravity.rpg.feature.skill.condition.impl;
 
-import com.antigravity.rpg.feature.skill.condition.Condition;
+import com.antigravity.rpg.api.skill.Condition;
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import io.lumine.mythic.bukkit.MythicBukkit;

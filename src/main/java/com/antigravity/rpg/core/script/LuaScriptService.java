@@ -159,9 +159,9 @@ public class LuaScriptService implements Service {
      * 특정 Lua 스크립트를 실행합니다.
      * 
      * @param scriptName 실행할 스크립트 파일명 (예: "fireball.lua")
-     * @param context    트리거 컨텍스트
+     * @param context    스킬 캐스트 컨텍스트
      */
-    public void executeScript(String scriptName, com.antigravity.rpg.core.engine.trigger.TriggerContext context) {
+    public void executeScript(String scriptName, com.antigravity.rpg.feature.skill.context.SkillCastContext context) {
         LuaValue chunk = scriptCache.get(scriptName);
         if (chunk == null) {
             plugin.getLogger().warning("Script not found (Cached): " + scriptName);
@@ -171,7 +171,7 @@ public class LuaScriptService implements Service {
         try {
             synchronized (globals) {
                 globals.set("context", CoerceJavaToLua.coerce(context));
-                globals.set("player", CoerceJavaToLua.coerce(context.getPlayer()));
+                globals.set("player", CoerceJavaToLua.coerce(context.getCasterEntity()));
                 chunk.call();
             }
         } catch (Exception e) {
@@ -183,20 +183,48 @@ public class LuaScriptService implements Service {
     /**
      * Lua 코드를 평가하여 결과를 반환합니다.
      */
+    private final java.util.Map<String, LuaValue> snippetCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Lua 코드를 평가하여 결과를 반환합니다.
+     * 스크립트 컴파일 결과를 캐싱하여 성능을 최적화합니다.
+     */
     public Object evaluate(String script, java.util.Map<String, Object> context) {
         try {
-            LuaValue chunk = globals.load(script);
-            for (java.util.Map.Entry<String, Object> entry : context.entrySet()) {
-                globals.set(entry.getKey(), CoerceJavaToLua.coerce(entry.getValue()));
+            LuaValue chunk = snippetCache.computeIfAbsent(script, s -> globals.load(s));
+
+            // Set context variables
+            // Note: Setting globals directly for each evaluate call is not thread-safe if
+            // multiple evals run concurrently on same globals.
+            // For safety in concurrent environment, we should use a closure environment or
+            // a new environment table with __index to globals.
+            // But preserving existing behavior of setting globals (as seen in original
+            // code) for now, assuming main thread only or handled.
+            // Actually, Original code: globals.set(...). This is bad for concurrency but
+            // fits the current single global model.
+
+            // To be safer/better: create a new environment for the chunk?
+            // chunk.setfenv(env) ??? Luaj 2 vs 3.
+            // Luaj 3: load(script, "name", env).
+            // If we cache the chunk, it's bound to the globals at load time usually?
+            // globals.load(script) compiles it using 'globals' as environment.
+            // If we re-use the chunk, it will use 'globals'.
+            // So setting variables in globals before call is the way, assuming single
+            // threaded or synchronized.
+
+            synchronized (globals) {
+                for (java.util.Map.Entry<String, Object> entry : context.entrySet()) {
+                    globals.set(entry.getKey(), CoerceJavaToLua.coerce(entry.getValue()));
+                }
+                LuaValue result = chunk.call();
+                if (result.isboolean())
+                    return result.toboolean();
+                if (result.isnumber())
+                    return result.todouble();
+                if (result.isstring())
+                    return result.tojstring();
+                return result;
             }
-            LuaValue result = chunk.call();
-            if (result.isboolean())
-                return result.toboolean();
-            if (result.isnumber())
-                return result.todouble();
-            if (result.isstring())
-                return result.tojstring();
-            return result;
         } catch (Exception e) {
             e.printStackTrace();
             return null;

@@ -1,7 +1,7 @@
 package com.antigravity.rpg.feature.skill.target.impl;
 
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
-import com.antigravity.rpg.feature.skill.target.Targeter;
+import com.antigravity.rpg.api.skill.Targeter;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.util.RayTraceResult;

@@ -1,7 +1,7 @@
 package com.antigravity.rpg.feature.skill.condition.impl;
 
 import com.antigravity.rpg.core.script.LuaScriptService;
-import com.antigravity.rpg.feature.skill.condition.Condition;
+import com.antigravity.rpg.api.skill.Condition;
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import com.google.inject.Inject;
 import org.bukkit.entity.Entity;

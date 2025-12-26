@@ -1,5 +1,6 @@
 package com.antigravity.rpg.feature.skill.mechanic;
 
+import com.antigravity.rpg.api.skill.Mechanic;
 import com.antigravity.rpg.feature.skill.mechanic.impl.*;
 import com.google.inject.Inject;
 import com.google.inject.Injector;

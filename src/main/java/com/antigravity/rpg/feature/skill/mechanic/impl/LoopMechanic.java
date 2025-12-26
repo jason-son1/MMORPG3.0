@@ -2,7 +2,7 @@ package com.antigravity.rpg.feature.skill.mechanic.impl;
 
 import com.antigravity.rpg.feature.skill.SkillDefinition;
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
-import com.antigravity.rpg.feature.skill.mechanic.Mechanic;
+import com.antigravity.rpg.api.skill.Mechanic;
 import com.antigravity.rpg.feature.skill.runtime.ScriptRunner;
 import com.google.inject.Inject;
 

@@ -3,7 +3,7 @@ package com.antigravity.rpg.feature.skill.runtime;
 import com.antigravity.rpg.core.ecs.EntityRegistry;
 import com.antigravity.rpg.feature.skill.SkillDefinition;
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
-import com.antigravity.rpg.feature.skill.ecs.ScriptComponent;
+import com.antigravity.rpg.core.ecs.component.ScriptComponent;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 

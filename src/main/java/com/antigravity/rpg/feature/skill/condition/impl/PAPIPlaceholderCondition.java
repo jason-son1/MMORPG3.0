@@ -1,6 +1,6 @@
 package com.antigravity.rpg.feature.skill.condition.impl;
 
-import com.antigravity.rpg.feature.skill.condition.Condition;
+import com.antigravity.rpg.api.skill.Condition;
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.entity.Entity;

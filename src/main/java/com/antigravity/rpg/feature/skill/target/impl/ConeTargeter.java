@@ -1,7 +1,7 @@
 package com.antigravity.rpg.feature.skill.target.impl;
 
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
-import com.antigravity.rpg.feature.skill.target.Targeter;
+import com.antigravity.rpg.api.skill.Targeter;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
@@ -15,10 +15,17 @@ import java.util.stream.Collectors;
  */
 public class ConeTargeter implements Targeter {
 
-    private final double radius;
-    private final double angle; // 시야각 (degrees)
+    private double radius;
+    private double angle; // 시야각 (degrees)
 
-    public ConeTargeter(Map<String, Object> config) {
+    public ConeTargeter() {
+        // Default values
+        this.radius = 5.0;
+        this.angle = 90.0;
+    }
+
+    @Override
+    public void setup(Map<String, Object> config) {
         this.radius = ((Number) config.getOrDefault("radius", 5.0)).doubleValue();
         this.angle = ((Number) config.getOrDefault("angle", 90.0)).doubleValue();
     }

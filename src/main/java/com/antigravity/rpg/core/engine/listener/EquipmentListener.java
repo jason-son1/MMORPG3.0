@@ -1,6 +1,6 @@
 package com.antigravity.rpg.core.engine.listener;
 
-import com.antigravity.rpg.feature.gui.EquipmentGUI;
+import com.antigravity.rpg.feature.ui.gui.EquipmentGUI;
 import com.antigravity.rpg.feature.item.EquipmentSlot;
 import com.antigravity.rpg.feature.player.PlayerProfileService;
 import com.google.inject.Inject;

@@ -2,8 +2,6 @@ package com.antigravity.rpg.feature.skill;
 
 import com.antigravity.rpg.AntiGravityPlugin;
 import com.antigravity.rpg.api.service.Service;
-import com.antigravity.rpg.core.engine.trigger.Trigger;
-import com.antigravity.rpg.core.engine.trigger.TriggerService;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.bukkit.configuration.ConfigurationSection;
@@ -24,14 +22,12 @@ import com.antigravity.rpg.core.config.ConfigDirectoryLoader;
 public class SkillManager implements Service {
 
     private final AntiGravityPlugin plugin;
-    private final TriggerService triggerService;
     private final ConfigDirectoryLoader configLoader;
     private final Map<String, SkillDefinition> skills = new ConcurrentHashMap<>();
 
     @Inject
-    public SkillManager(AntiGravityPlugin plugin, TriggerService triggerService, ConfigDirectoryLoader configLoader) {
+    public SkillManager(AntiGravityPlugin plugin, ConfigDirectoryLoader configLoader) {
         this.plugin = plugin;
-        this.triggerService = triggerService;
         this.configLoader = configLoader;
     }
 
@@ -84,14 +80,7 @@ public class SkillManager implements Service {
 
                 SkillDefinition skill = new SkillDefinition(id, name, cooldown, mana, stamina);
 
-                // 트리거 및 액션 파싱 (레거시 방식 지원)
-                List<String> actions = s.getStringList("actions");
-                List<String> conditions = s.getStringList("conditions");
-
-                if (!actions.isEmpty() || !conditions.isEmpty()) {
-                    Trigger trigger = triggerService.parseTrigger(conditions, actions);
-                    skill.addTrigger(trigger);
-                }
+                // (레거시 트리거/액션 파싱 제거됨 - 이제 mechanics/flow만 사용)
 
                 // [NEW] 메카닉(Mechanic) 파싱 (재귀적 맵 변환 지원)
                 if (s.contains("mechanics")) {

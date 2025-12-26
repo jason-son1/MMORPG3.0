@@ -2,8 +2,8 @@ package com.antigravity.rpg.feature.skill.mechanic.impl;
 
 import com.antigravity.rpg.core.ecs.EntityRegistry;
 import com.antigravity.rpg.feature.skill.context.SkillCastContext;
-import com.antigravity.rpg.feature.skill.ecs.ProjectileComponent;
-import com.antigravity.rpg.feature.skill.mechanic.Mechanic;
+import com.antigravity.rpg.core.ecs.component.ProjectileComponent;
+import com.antigravity.rpg.api.skill.Mechanic;
 import com.google.inject.Inject;
 import org.bukkit.Location;
 import org.bukkit.util.Vector;

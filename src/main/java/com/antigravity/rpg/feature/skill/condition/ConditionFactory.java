@@ -1,5 +1,6 @@
 package com.antigravity.rpg.feature.skill.condition;
 
+import com.antigravity.rpg.api.skill.Condition;
 import com.antigravity.rpg.feature.skill.condition.impl.*;
 import com.google.inject.Inject;
 import com.google.inject.Injector;

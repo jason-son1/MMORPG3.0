@@ -3,3 +3,99 @@ Lua Script 확장: 복잡한 공식(예: 치명타 데미지, 복합 속성 계�
 ItemsAdder 지원: ItemsAdderProvider 구현을 통한 외형 시스템 확장.
 데이터베이스 동기화: PersistenceManager를 통한 비동기 데이터 저장 안정화.
 
+
+마인크래프트 RPG 서버 개발용 플러그인이야 
+현재 개발중인 단계이고
+
+RPG 시스템을 개발할 때의 개발의 자율성이 중요하게 개발하는 중이야
+
+전체적인 방안과 구조
+
+[방안]
+
+기본적으로 각 주제별로 폴더로 구분해서 해당 폴더의 config data를 읽어와서
+해당 주제별로의 기본 세팅, 주제별로 개념의 정의, 기본적인 데이터의 생성및 구조
+(예시 / class 주제 - class system global option, classes 정의하고 구조, 각 class들의 기본정보들 정의
+items 주제 - item 생성, item global option, item 정의 구조 설정 / skill 주제 - skill의 gloabal 세팅, 스킬 정의 및 기본 설정 / 
+status 주제 - status global setting, status 정의 및 기본 설정 / 등 등)
+
+Lua 스크립트로 상세한 설정및 실제 시스템 설계
+Lua 스크립트를 설정하지 않으면 기본적으로는
+config data에서 정의도니 정보 + 기본적으로 플러그인에서 제공해주는 메커니즘으로 제공 (Default 세팅으로 전체 제공)
+Lua Skript로 세부적인 모든 기능들 config data에서 제공한 기본적인 data를 기반으로 해당 data들을 실질적으로 다루게 할 수 있고
+더욱 복잡한 기능들을 실행할 수 있게함.
+
+MythicMob과의 연동
+MythicMob의 데이터에서 현재 플러그인에서 정의한 data들을 읽어오고
+해당 플러그인에서 추가적으로 MythicMob에 기능을 제공하기도 해야함.
+MythicMob과의 높은 연계성이 중요
+
+PlaceholderAPI로 해당 플러그인에서 정의한 데이터를 변수형태로 어디서든 자유롭게 사용가능해야함
+
+Skipt 플러그인에서도 해당 플러그인의 기능들이 사용가능해야함
+해당 부분은 추후의 Skript addon 플러그인으로 따로 개발 예정? 혹은 아직 미정|
+
+그 외에도 유명한 필수적인 다른 플러그인과의 연동성이 좋아야함
+
+
+또한, 추후 플러그인의 형태가 다 잡혀지면 
+해당 플러그인을 다른 플러그인에서도 API로 활용할 수 있게
+밖으로 내보내주는 API 기능또한 갖춰야한다
+
+
+[구조]
+현재 플러그인은 Core(엔진), Data(데이터), Feature(기능), **Integration(연동)**의 4계층으로 명확히 분리되어 있으며, 이를 통해 유연한 설정과 스크립팅을 지원합니다.
+
+1. ECS 기반의 유연한 코어 엔진 (Core Engine)
+전통적인 객체 지향 방식의 한계를 넘어, 데이터(Component)와 로직(System)을 분리하여 무한한 확장성을 제공합니다.
+
+Entity & Component (core.ecs): 플레이어, 몬스터, 투사체 등을 Entity로 정의하고, 이들의 상태(체력, 마나, 태그, 효과 등)를 독립적인 Component(EffectComponent, TagComponent 등)로 부착하여 관리합니다.
+
+System (core.ecs.system): HealthRegenSystem, CooldownSystem 등 특정 컴포넌트들을 가진 엔티티들에 대해 주기적인 로직을 수행합니다.
+
+Service Architecture (core.ServiceManager): 각 기능(스킬, 아이템, 전투 등)을 독립적인 서비스(Service 인터페이스 구현)로 관리하며, RpgCoreModule을 통해 의존성을 주입(DI)받아 모듈 간 결합도를 낮췄습니다.
+
+2. 하이브리드 구성 시스템 (Hybrid Configuration: YAML + Lua)
+사용자의 진입 장벽을 낮추면서도 심층적인 커스터마이징을 지원하는 이중 구조를 채택했습니다.
+
+Static Data Layer (data.file, core.config):
+
+ConfigDirectoryLoader가 주제별 폴더(classes/, items/, skills/)를 스캔하여 YAML 데이터를 로드합니다.
+
+YamlFileManager를 통해 기본적인 속성(이름, 기본 스탯, 트리거 조건 등)을 정의하고, 이를 Java 객체(ItemTemplate, SkillDefinition 등)로 매핑하여 기본 메커니즘을 제공합니다.
+
+Dynamic Scripting Layer (core.script):
+
+LuaScriptService와 LuaBinding을 통해 Java의 핵심 API를 Lua 환경에 노출합니다.
+
+각 기능(예: ScriptMechanic, LuaCondition)에서 사용자가 작성한 Lua 스크립트를 호출하여, 하드코딩되지 않은 복잡한 로직(데미지 공식, 특수 효과 등)을 실행합니다.
+
+3. 도메인 주도 기능 모듈화 (Feature Modules)
+각 게임 시스템을 독립적인 패키지로 격리하여 관리 편의성을 높였습니다 (com.antigravity.rpg.feature).
+
+Class & Stat (feature.classes, core.engine): ClassDefinition을 통해 클래스를 정의하고, StatCalculator가 장비, 버프, 패시브 등 다양한 소스의 스탯을 합산 처리합니다.
+
+Item & Equipment (feature.item): ItemGenerator와 CustomItemFactory를 통해 NBT 기반의 커스텀 아이템을 생성하며, EquipmentService가 장착 슬롯과 효과를 제어합니다.
+
+Skill & Combat (feature.skill, feature.combat):
+
+Trigger & Action: TriggerService가 특정 이벤트(공격, 피격, 클릭 등)를 감지하고, 연결된 SkillCastService를 통해 스킬을 시전합니다.
+
+Mechanic Pipeline: 스킬 효과는 Mechanic(Damage, Heal, Projectile)들의 조합으로 이루어지며, Targeter(Cone, Radius)를 통해 대상을 선정하는 파이프라인 구조를 가집니다.
+
+4. 외부 연동 및 확장 API (Integration & API)
+외부 플러그인과의 생태계 확장을 고려한 설계를 포함합니다.
+
+Hook System (core.engine.hook):
+
+MythicMobsHook: 미식몹의 스킬 시스템과 연동하거나, 미식몹을 스킬의 대상/조건으로 사용할 수 있도록 래핑합니다.
+
+ModelEngineHook: ModelEngineProvider를 통해 화려한 3D 모델 및 애니메이션을 스킬 이펙트로 제어합니다.
+
+Placeholder Integration (core.formula): PlaceholderService를 통해 내부 데이터를 PAPI 변수로 노출하거나, 반대로 PAPI 변수를 수식 엔진(ExpressionEngine)에서 사용하여 동적인 수치 계산을 지원합니다.
+
+Events (core.event): PriorityEventBus 및 Bukkit 이벤트를 통해 내부 시스템의 변화를 외부에 알릴 준비가 되어 있어, 추후 Skript Addon이나 타 플러그인 API 제공이 용이합니다.
+
+[요약] 이 구조는 **"설정은 간편하게(YAML), 로직은 자유롭게(Lua), 확장은 무한하게(ECS)"**라는 개발 철학을 기술적으로 구현하고 있습니다.
+
+

@@ -1,7 +1,8 @@
 package com.antigravity.rpg.feature.skill.target;
 
-import com.antigravity.rpg.feature.skill.condition.Condition;
+import com.antigravity.rpg.api.skill.Condition;
 import com.antigravity.rpg.feature.skill.condition.ConditionFactory;
+import com.antigravity.rpg.api.skill.Targeter;
 import com.antigravity.rpg.feature.skill.target.impl.*;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -37,7 +38,8 @@ public class TargeterFactory {
                 base = new SphereTargeter(config);
                 break;
             case "cone":
-                base = new ConeTargeter(config);
+                base = new ConeTargeter();
+                base.setup(config);
                 break;
             case "ray":
             case "raytrace":
