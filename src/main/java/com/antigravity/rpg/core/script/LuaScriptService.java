@@ -2,6 +2,7 @@ package com.antigravity.rpg.core.script;
 
 import com.antigravity.rpg.AntiGravityPlugin;
 import com.antigravity.rpg.api.service.Service;
+import com.antigravity.rpg.core.config.ResourceLoader;
 import com.antigravity.rpg.core.engine.DamageContext;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -14,6 +15,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Singleton
 public class LuaScriptService implements Service {
@@ -24,6 +26,7 @@ public class LuaScriptService implements Service {
     private final com.antigravity.rpg.core.engine.hook.MythicMobsHook mythicMobsHook;
     private final com.antigravity.rpg.core.engine.hook.ModelEngineHook modelEngineHook;
     private final com.antigravity.rpg.feature.player.PlayerProfileService playerProfileService;
+    private final ResourceLoader resourceLoader;
 
     private Globals globals;
     private final java.util.Map<String, LuaValue> scriptCache = new java.util.concurrent.ConcurrentHashMap<>();
@@ -34,13 +37,15 @@ public class LuaScriptService implements Service {
             com.antigravity.rpg.feature.combat.CombatService combatService,
             com.antigravity.rpg.core.engine.hook.MythicMobsHook mythicMobsHook,
             com.antigravity.rpg.core.engine.hook.ModelEngineHook modelEngineHook,
-            com.antigravity.rpg.feature.player.PlayerProfileService playerProfileService) {
+            com.antigravity.rpg.feature.player.PlayerProfileService playerProfileService,
+            ResourceLoader resourceLoader) {
         this.plugin = plugin;
         this.expressionEngine = expressionEngine;
         this.combatService = combatService;
         this.mythicMobsHook = mythicMobsHook;
         this.modelEngineHook = modelEngineHook;
         this.playerProfileService = playerProfileService;
+        this.resourceLoader = resourceLoader;
     }
 
     @Override
@@ -81,19 +86,30 @@ public class LuaScriptService implements Service {
             scriptsDir.mkdirs();
         }
 
-        File[] files = scriptsDir.listFiles((dir, name) -> name.endsWith(".lua"));
-        if (files == null)
-            return;
+        // 재귀적으로 모든 Lua 스크립트 탐색 (하위 폴더 포함)
+        Map<String, File> scripts = resourceLoader.scanLuaScripts(scriptsDir);
 
-        for (File file : files) {
+        for (Map.Entry<String, File> entry : scripts.entrySet()) {
+            String key = entry.getKey(); // 예: "skills/berserker_strike", "combat/formulas"
+            File file = entry.getValue();
+
             try (InputStreamReader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
                 LuaValue chunk = globals.load(reader, file.getName());
-                scriptCache.put(file.getName(), chunk);
+                // 상대 경로를 키로 저장하여 하위 폴더 구분 가능
+                scriptCache.put(key, chunk);
+                // 파일명만으로도 접근 가능하도록 추가 등록 (호환성)
+                String fileName = resourceLoader.getFileNameWithoutExtension(file);
+                if (!scriptCache.containsKey(fileName)) {
+                    scriptCache.put(fileName, chunk);
+                }
+                plugin.getLogger().info("Loaded script: " + key);
             } catch (Exception e) {
-                plugin.getLogger().severe("Failed to load script: " + file.getName());
+                plugin.getLogger().severe("Failed to load script: " + key);
                 e.printStackTrace();
             }
         }
+
+        plugin.getLogger().info("총 " + scripts.size() + "개의 Lua 스크립트 로드 완료 (하위 폴더 포함)");
     }
 
     private void loadCombatFormulas() {
